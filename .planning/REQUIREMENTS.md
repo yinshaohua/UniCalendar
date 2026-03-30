@@ -80,31 +80,31 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIEW-01 | TBD | Pending |
-| VIEW-02 | TBD | Pending |
-| VIEW-03 | TBD | Pending |
-| VIEW-04 | TBD | Pending |
-| VIEW-05 | TBD | Pending |
-| VIEW-06 | TBD | Pending |
-| SYNC-01 | TBD | Pending |
-| SYNC-02 | TBD | Pending |
-| SYNC-03 | TBD | Pending |
-| SYNC-04 | TBD | Pending |
-| EVNT-01 | TBD | Pending |
-| EVNT-02 | TBD | Pending |
-| EVNT-03 | TBD | Pending |
-| EVNT-04 | TBD | Pending |
-| EVNT-05 | TBD | Pending |
-| INFR-01 | TBD | Pending |
-| INFR-02 | TBD | Pending |
-| INFR-03 | TBD | Pending |
-| INFR-04 | TBD | Pending |
+| VIEW-01 | Phase 2 | Pending |
+| VIEW-02 | Phase 2 | Pending |
+| VIEW-03 | Phase 2 | Pending |
+| VIEW-04 | Phase 2 | Pending |
+| VIEW-05 | Phase 2 | Pending |
+| VIEW-06 | Phase 2 | Pending |
+| SYNC-01 | Phase 4 | Pending |
+| SYNC-02 | Phase 3 | Pending |
+| SYNC-03 | Phase 2 | Pending |
+| SYNC-04 | Phase 4 | Pending |
+| EVNT-01 | Phase 2 | Pending |
+| EVNT-02 | Phase 2 | Pending |
+| EVNT-03 | Phase 2 | Pending |
+| EVNT-04 | Phase 2 | Pending |
+| EVNT-05 | Phase 1 | Pending |
+| INFR-01 | Phase 1 | Pending |
+| INFR-02 | Phase 1 | Pending |
+| INFR-03 | Phase 5 | Pending |
+| INFR-04 | Phase 1 | Pending |
 
 **Coverage:**
 - v1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 after initial definition*
+*Last updated: 2026-03-31 after roadmap creation*
