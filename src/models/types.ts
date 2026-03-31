@@ -51,7 +51,8 @@ export const SOURCE_COLORS: string[] = [
 
 export function getNextColor(existingSources: CalendarSource[]): string {
   const usedColors = new Set(existingSources.map(s => s.color));
-  return SOURCE_COLORS.find(c => !usedColors.has(c)) ?? SOURCE_COLORS[0];
+  // SOURCE_COLORS is guaranteed non-empty, so fallback is always valid
+  return SOURCE_COLORS.find(c => !usedColors.has(c)) ?? SOURCE_COLORS[0]!;
 }
 
 export const DEFAULT_SETTINGS: UniCalendarSettings = {
