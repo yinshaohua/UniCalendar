@@ -2,8 +2,8 @@
 phase: 1
 slug: foundation-and-infrastructure
 status: draft
-nyquist_compliant: false
-wave_0_complete: false
+nyquist_compliant: true
+wave_0_complete: true
 created: 2026-03-31
 ---
 
@@ -38,11 +38,12 @@ created: 2026-03-31
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 01-01-01 | 01 | 0 | ALL | infra | `npx vitest run` | No — Wave 0 | ⬜ pending |
-| 01-02-01 | 02 | 1 | INFR-01 | unit | `npx vitest run tests/store/EventStore.test.ts -t "persistence"` | No — Wave 0 | ⬜ pending |
-| 01-03-01 | 03 | 1 | INFR-02 | unit | `npx vitest run tests/settings/types.test.ts -t "sources"` | No — Wave 0 | ⬜ pending |
-| 01-04-01 | 04 | 2 | EVNT-05 | unit | `npx vitest run tests/sync/SyncManager.test.ts -t "status"` | No — Wave 0 | ⬜ pending |
-| 01-05-01 | 05 | 2 | INFR-04 | lint/static | `npm run lint && npm run build` | Yes (lint exists) | ⬜ pending |
+| 01-01-T1 | 01 | 1 | INFR-01, INFR-02 | types | `npx tsc --noEmit --skipLibCheck src/models/types.ts` | No — created by task | ⬜ pending |
+| 01-01-T2 | 01 | 1 | INFR-01, INFR-02, EVNT-05 | unit | `npm test` | No — created by task | ⬜ pending |
+| 01-03-T1 | 03 | 2 | INFR-02 | build | `npx tsc --noEmit --skipLibCheck` | No — created by task | ⬜ pending |
+| 01-03-T2 | 03 | 2 | INFR-02 | manual | `npm run build` + human verify | N/A | ⬜ pending |
+| 01-02-T1 | 02 | 3 | INFR-04, EVNT-05 | build | `npx tsc --noEmit --skipLibCheck` | No — created by task | ⬜ pending |
+| 01-02-T2 | 02 | 3 | INFR-04, EVNT-05 | build | `npm run build` | No — created by task | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
