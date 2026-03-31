@@ -72,13 +72,13 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
     containerEl.createEl('style', { text: CARD_STYLES });
 
     // Section 1: General Settings
-    containerEl.createEl('h2', { text: 'General' });
+    containerEl.createEl('h2', { text: '通用设置' });
 
     new Setting(containerEl)
-      .setName('Sync interval')
-      .setDesc('How often to automatically sync calendar events')
+      .setName('同步间隔')
+      .setDesc('自动同步日历事件的频率')
       .addDropdown(dropdown => dropdown
-        .addOptions({ '5': '5 minutes', '15': '15 minutes', '30': '30 minutes', '60': '1 hour' })
+        .addOptions({ '5': '5 分钟', '15': '15 分钟', '30': '30 分钟', '60': '1 小时' })
         .setValue(String(this.plugin.settings.syncInterval))
         .onChange(async (value) => {
           this.plugin.settings.syncInterval = Number(value);
@@ -86,10 +86,10 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
-      .setName('Default view')
-      .setDesc('Calendar view to show when opening the plugin')
+      .setName('默认视图')
+      .setDesc('打开插件时显示的日历视图')
       .addDropdown(dropdown => dropdown
-        .addOptions({ 'month': 'Month', 'week': 'Week', 'day': 'Day' })
+        .addOptions({ 'month': '月', 'week': '周', 'day': '日' })
         .setValue(this.plugin.settings.defaultView)
         .onChange(async (value) => {
           this.plugin.settings.defaultView = value as 'month' | 'week' | 'day';
@@ -97,11 +97,11 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
         }));
 
     // Section 2: Calendar Sources
-    containerEl.createEl('h2', { text: 'Calendar Sources' });
+    containerEl.createEl('h2', { text: '日历源' });
 
     if (this.plugin.settings.sources.length === 0) {
       containerEl.createEl('p', {
-        text: 'No calendar sources configured. Add one below.',
+        text: '未配置日历源，请在下方添加。',
         cls: 'setting-item-description',
       });
     }
@@ -120,7 +120,7 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
       detailsDiv.createEl('span', { text: source.name, cls: 'uni-calendar-source-name' });
       detailsDiv.createEl('span', { text: source.type.toUpperCase(), cls: 'uni-calendar-source-type' });
       detailsDiv.createEl('div', {
-        text: source.enabled ? 'Enabled' : 'Disabled',
+        text: source.enabled ? '已启用' : '已禁用',
         cls: 'uni-calendar-source-status',
       });
 
@@ -128,13 +128,13 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
       new Setting(card)
         .addExtraButton(btn => btn
           .setIcon('pencil')
-          .setTooltip('Edit')
+          .setTooltip('编辑')
           .onClick(() => {
             new EditSourceModal(this.app, this.plugin, source, () => this.display()).open();
           }))
         .addExtraButton(btn => btn
           .setIcon('trash')
-          .setTooltip('Delete')
+          .setTooltip('删除')
           .onClick(async () => {
             this.plugin.settings.sources = this.plugin.settings.sources.filter(s => s.id !== source.id);
             await this.plugin.saveSettings();
@@ -145,7 +145,7 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
     // Add source button
     new Setting(containerEl)
       .addButton(btn => btn
-        .setButtonText('Add calendar source')
+        .setButtonText('添加日历源')
         .setCta()
         .onClick(() => {
           new AddSourceModal(this.app, this.plugin, () => this.display()).open();
@@ -165,7 +165,7 @@ class AddSourceModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText('Add Calendar Source');
+    this.titleEl.setText('添加日历源');
     this.showTypeSelection();
   }
 
@@ -178,14 +178,14 @@ class AddSourceModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
 
-    contentEl.createEl('p', { text: 'Select the type of calendar source to add:' });
+    contentEl.createEl('p', { text: '选择要添加的日历源类型：' });
 
     const buttonContainer = contentEl.createDiv({ attr: { style: 'display: flex; gap: var(--size-4-3); flex-wrap: wrap;' } });
 
     const types: Array<{ type: 'google' | 'caldav' | 'ics'; label: string; desc: string }> = [
-      { type: 'google', label: 'Google Calendar', desc: 'Google Calendar via API' },
-      { type: 'caldav', label: 'CalDAV', desc: 'CalDAV server (DingTalk, iCloud, etc.)' },
-      { type: 'ics', label: 'ICS Feed', desc: 'Subscribe to an ICS/iCal feed URL' },
+      { type: 'google', label: 'Google 日历', desc: '通过 API 同步 Google 日历' },
+      { type: 'caldav', label: 'CalDAV', desc: 'CalDAV 服务器（钉钉、iCloud 等）' },
+      { type: 'ics', label: 'ICS 订阅', desc: '订阅 ICS/iCal 日历链接' },
     ];
 
     for (const t of types) {
@@ -208,8 +208,8 @@ class AddSourceModal extends Modal {
     contentEl.empty();
 
     const type = this.selectedType;
-    const typeLabels = { google: 'Google Calendar', caldav: 'CalDAV', ics: 'ICS Feed' };
-    this.titleEl.setText(`Add ${typeLabels[type]} Source`);
+    const typeLabels = { google: 'Google 日历', caldav: 'CalDAV', ics: 'ICS 订阅' };
+    this.titleEl.setText(`添加${typeLabels[type]}源`);
 
     // Form state
     let name = '';
@@ -227,22 +227,22 @@ class AddSourceModal extends Modal {
 
     // Common fields
     new Setting(contentEl)
-      .setName('Name')
-      .setDesc('Display name for this calendar source')
+      .setName('名称')
+      .setDesc('此日历源的显示名称')
       .addText(text => text
-        .setPlaceholder('My Calendar')
+        .setPlaceholder('我的日历')
         .onChange(value => { name = value; }));
 
     new Setting(contentEl)
-      .setName('Color')
-      .setDesc('Color used for events from this source')
+      .setName('颜色')
+      .setDesc('此日历源事件使用的颜色')
       .addColorPicker(picker => picker
         .setValue(color)
         .onChange(value => { color = value; }));
 
     new Setting(contentEl)
-      .setName('Enabled')
-      .setDesc('Whether to sync events from this source')
+      .setName('启用')
+      .setDesc('是否同步此日历源的事件')
       .addToggle(toggle => toggle
         .setValue(enabled)
         .onChange(value => { enabled = value; }));
@@ -266,20 +266,20 @@ class AddSourceModal extends Modal {
         });
     } else if (type === 'caldav') {
       new Setting(contentEl)
-        .setName('Server URL')
-        .setDesc('CalDAV server URL')
+        .setName('服务器地址')
+        .setDesc('CalDAV 服务器 URL')
         .addText(text => text
           .setPlaceholder('https://caldav.example.com')
           .onChange(value => { serverUrl = value; }));
 
       new Setting(contentEl)
-        .setName('Username')
+        .setName('用户名')
         .addText(text => text
           .setPlaceholder('username')
           .onChange(value => { username = value; }));
 
       new Setting(contentEl)
-        .setName('Password')
+        .setName('密码')
         .addText(text => {
           text.setPlaceholder('password')
             .onChange(value => { password = value; });
@@ -287,15 +287,15 @@ class AddSourceModal extends Modal {
         });
 
       new Setting(contentEl)
-        .setName('Calendar path')
-        .setDesc('Optional — auto-discovered if left empty')
+        .setName('日历路径')
+        .setDesc('可选 — 留空则自动发现')
         .addText(text => text
           .setPlaceholder('/calendars/default/')
           .onChange(value => { calendarPath = value; }));
     } else if (type === 'ics') {
       new Setting(contentEl)
-        .setName('Feed URL')
-        .setDesc('URL of the ICS/iCal feed')
+        .setName('订阅链接')
+        .setDesc('ICS/iCal 日历订阅 URL')
         .addText(text => text
           .setPlaceholder('https://example.com/calendar.ics')
           .onChange(value => { feedUrl = value; }));
@@ -304,17 +304,17 @@ class AddSourceModal extends Modal {
     // Action buttons
     const buttonContainer = contentEl.createDiv({ attr: { style: 'display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4);' } });
 
-    const backBtn = buttonContainer.createEl('button', { text: 'Back' });
+    const backBtn = buttonContainer.createEl('button', { text: '返回' });
     backBtn.addEventListener('click', () => {
       this.selectedType = null;
-      this.titleEl.setText('Add Calendar Source');
+      this.titleEl.setText('添加日历源');
       this.showTypeSelection();
     });
 
-    const saveBtn = buttonContainer.createEl('button', { text: 'Save', cls: 'mod-cta' });
+    const saveBtn = buttonContainer.createEl('button', { text: '保存', cls: 'mod-cta' });
     saveBtn.addEventListener('click', async () => {
       if (!name.trim()) {
-        new Notice('Please enter a name for the calendar source.');
+        new Notice('请输入日历源名称');
         return;
       }
 
@@ -328,13 +328,13 @@ class AddSourceModal extends Modal {
 
       if (type === 'google') {
         if (!clientId.trim() || !clientSecret.trim()) {
-          new Notice('Please enter both Client ID and Client Secret.');
+          new Notice('请输入 Client ID 和 Client Secret');
           return;
         }
         source.google = { clientId: clientId.trim(), clientSecret: clientSecret.trim() };
       } else if (type === 'caldav') {
         if (!serverUrl.trim()) {
-          new Notice('Please enter the CalDAV server URL.');
+          new Notice('请输入 CalDAV 服务器地址');
           return;
         }
         source.caldav = {
@@ -345,7 +345,7 @@ class AddSourceModal extends Modal {
         };
       } else if (type === 'ics') {
         if (!feedUrl.trim()) {
-          new Notice('Please enter the ICS feed URL.');
+          new Notice('请输入 ICS 订阅链接');
           return;
         }
         source.ics = { feedUrl: feedUrl.trim() };
@@ -372,8 +372,8 @@ class EditSourceModal extends Modal {
   }
 
   onOpen(): void {
-    const typeLabels = { google: 'Google Calendar', caldav: 'CalDAV', ics: 'ICS Feed' };
-    this.titleEl.setText(`Edit ${typeLabels[this.source.type]} Source`);
+    const typeLabels = { google: 'Google 日历', caldav: 'CalDAV', ics: 'ICS 订阅' };
+    this.titleEl.setText(`编辑${typeLabels[this.source.type]}源`);
 
     const { contentEl } = this;
     contentEl.empty();
@@ -396,7 +396,7 @@ class EditSourceModal extends Modal {
 
     // Type (read-only)
     new Setting(contentEl)
-      .setName('Type')
+      .setName('类型')
       .setDesc(typeLabels[source.type])
       .setDisabled(true);
 
@@ -409,15 +409,15 @@ class EditSourceModal extends Modal {
         .onChange(value => { name = value; }));
 
     new Setting(contentEl)
-      .setName('Color')
-      .setDesc('Color used for events from this source')
+      .setName('颜色')
+      .setDesc('此日历源事件使用的颜色')
       .addColorPicker(picker => picker
         .setValue(color)
         .onChange(value => { color = value; }));
 
     new Setting(contentEl)
-      .setName('Enabled')
-      .setDesc('Whether to sync events from this source')
+      .setName('启用')
+      .setDesc('是否同步此日历源的事件')
       .addToggle(toggle => toggle
         .setValue(enabled)
         .onChange(value => { enabled = value; }));
@@ -441,20 +441,20 @@ class EditSourceModal extends Modal {
         });
     } else if (source.type === 'caldav') {
       new Setting(contentEl)
-        .setName('Server URL')
-        .setDesc('CalDAV server URL')
+        .setName('服务器地址')
+        .setDesc('CalDAV 服务器 URL')
         .addText(text => text
           .setValue(serverUrl)
           .onChange(value => { serverUrl = value; }));
 
       new Setting(contentEl)
-        .setName('Username')
+        .setName('用户名')
         .addText(text => text
           .setValue(username)
           .onChange(value => { username = value; }));
 
       new Setting(contentEl)
-        .setName('Password')
+        .setName('密码')
         .addText(text => {
           text.setValue(password)
             .onChange(value => { password = value; });
@@ -462,15 +462,15 @@ class EditSourceModal extends Modal {
         });
 
       new Setting(contentEl)
-        .setName('Calendar path')
-        .setDesc('Optional — auto-discovered if left empty')
+        .setName('日历路径')
+        .setDesc('可选 — 留空则自动发现')
         .addText(text => text
           .setValue(calendarPath)
           .onChange(value => { calendarPath = value; }));
     } else if (source.type === 'ics') {
       new Setting(contentEl)
-        .setName('Feed URL')
-        .setDesc('URL of the ICS/iCal feed')
+        .setName('订阅链接')
+        .setDesc('ICS/iCal 日历订阅 URL')
         .addText(text => text
           .setValue(feedUrl)
           .onChange(value => { feedUrl = value; }));
@@ -479,22 +479,22 @@ class EditSourceModal extends Modal {
     // Action buttons
     const buttonContainer = contentEl.createDiv({ attr: { style: 'display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4);' } });
 
-    const cancelBtn = buttonContainer.createEl('button', { text: 'Cancel' });
+    const cancelBtn = buttonContainer.createEl('button', { text: '取消' });
     cancelBtn.addEventListener('click', () => {
       this.close();
     });
 
-    const saveBtn = buttonContainer.createEl('button', { text: 'Save', cls: 'mod-cta' });
+    const saveBtn = buttonContainer.createEl('button', { text: '保存', cls: 'mod-cta' });
     saveBtn.addEventListener('click', async () => {
       if (!name.trim()) {
-        new Notice('Please enter a name for the calendar source.');
+        new Notice('请输入日历源名称');
         return;
       }
 
       // Update source in-place
       const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
       if (idx === -1) {
-        new Notice('Source not found. It may have been deleted.');
+        new Notice('未找到日历源，可能已被删除。');
         this.close();
         return;
       }

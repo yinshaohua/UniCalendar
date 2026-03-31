@@ -29,13 +29,13 @@ export default class UniCalendarPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_CALENDAR, (leaf) => new CalendarView(leaf, this));
 
-    this.addRibbonIcon('calendar', 'UniCalendar: Open calendar', () => {
+    this.addRibbonIcon('calendar', 'UniCalendar: 打开日历', () => {
       this.activateView();
     });
 
     this.addCommand({
       id: 'open-calendar',
-      name: 'Open calendar',
+      name: '打开日历',
       callback: () => this.activateView(),
     });
 
@@ -60,7 +60,7 @@ export default class UniCalendarPlugin extends Plugin {
       return;
     }
 
-    const leaf: WorkspaceLeaf | null = this.app.workspace.getRightLeaf(false);
+    const leaf: WorkspaceLeaf | null = this.app.workspace.getLeaf('tab');
     if (leaf) {
       await leaf.setViewState({ type: VIEW_TYPE_CALENDAR, active: true });
       this.app.workspace.revealLeaf(leaf);
