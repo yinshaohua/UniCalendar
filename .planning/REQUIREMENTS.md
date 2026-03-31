@@ -36,7 +36,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [x] **INFR-01**: User can view previously synced events when offline
 - [x] **INFR-02**: User can add, edit, and remove calendar sources in settings
 - [ ] **INFR-03**: User sees an Apple Calendar-inspired UI with clean design, rounded corners, and soft colors
-- [ ] **INFR-04**: Plugin works on both Obsidian desktop and mobile
+- [x] **INFR-04**: Plugin works on both Obsidian desktop and mobile
 
 ## v2 Requirements
 
