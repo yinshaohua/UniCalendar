@@ -30,7 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Plugin loads and renders on both Obsidian desktop and mobile without errors
   4. User sees a sync status indicator showing "no sources configured" or last sync time
   5. Previously synced event data persists across Obsidian restarts (offline cache operational)
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md -- Types, EventStore, SyncManager, and test infrastructure
+- [ ] 01-02-PLAN.md -- Plugin entry point, CalendarView with empty state grid and sync status
+- [ ] 01-03-PLAN.md -- Card-based settings UI for calendar source management
 
 ### Phase 2: ICS Feeds and Calendar Views
 **Goal**: Users can subscribe to ICS feed URLs and see events rendered in fully functional month, week, and day calendar views
@@ -85,7 +90,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation and Infrastructure | 0/? | Not started | - |
+| 1. Foundation and Infrastructure | 0/3 | Planning complete | - |
 | 2. ICS Feeds and Calendar Views | 0/? | Not started | - |
 | 3. CalDAV Integration | 0/? | Not started | - |
 | 4. Google Calendar and Multi-Source Unification | 0/? | Not started | - |
