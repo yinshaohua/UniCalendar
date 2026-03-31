@@ -39,7 +39,7 @@ const CALENDAR_CSS = `
   font-size: 1.1em;
   font-weight: 700;
   color: var(--text-normal);
-  min-width: 100px;
+  min-width: 240px;
   user-select: none;
 }
 
@@ -293,29 +293,6 @@ const CALENDAR_CSS = `
   border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
 }
 
-/* === Empty state === */
-.uni-calendar-empty {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  background: color-mix(in srgb, var(--background-primary) 90%, transparent);
-  z-index: 10;
-  gap: var(--size-4-3);
-  color: var(--text-muted);
-  text-align: center;
-}
-.uni-calendar-empty .uni-calendar-empty-icon {
-  width: 48px;
-  height: 48px;
-  color: var(--text-faint);
-}
-.uni-calendar-empty .uni-calendar-empty-icon svg {
-  width: 48px;
-  height: 48px;
-}
 `;
 
 const DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
@@ -332,7 +309,6 @@ export class CalendarView extends ItemView {
   private plugin: PluginRef;
   private syncStatusEl: HTMLElement | null = null;
   private calendarGridEl: HTMLElement | null = null;
-  private emptyStateEl: HTMLElement | null = null;
   private monthLabelEl: HTMLElement | null = null;
   private contentContainerEl: HTMLElement | null = null;
 
@@ -428,8 +404,6 @@ export class CalendarView extends ItemView {
     // === Content ===
     this.contentContainerEl = container.createDiv({ cls: 'uni-calendar-content' });
     this.renderCurrentView();
-
-    this.updateEmptyState(this.plugin.settings.sources.length > 0);
   }
 
   updateSyncStatus(state: SyncState, sourceCount: number): void {
@@ -467,15 +441,14 @@ export class CalendarView extends ItemView {
     }
   }
 
-  updateEmptyState(hasSources: boolean): void {
-    if (!this.emptyStateEl) return;
-    this.emptyStateEl.style.display = hasSources ? 'none' : '';
+  updateEmptyState(_hasSources: boolean): void {
+    // Empty state overlay removed per user feedback.
+    // Method kept as no-op for compatibility with main.ts calls.
   }
 
   async onClose(): Promise<void> {
     this.syncStatusEl = null;
     this.calendarGridEl = null;
-    this.emptyStateEl = null;
     this.monthLabelEl = null;
     this.contentContainerEl = null;
   }
@@ -556,17 +529,6 @@ export class CalendarView extends ItemView {
       this.calendarGridEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-day-grid' });
       this.renderDayGrid(this.calendarGridEl);
     }
-
-    // Empty state overlay
-    this.emptyStateEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-empty' });
-    const iconSpan = this.emptyStateEl.createSpan({ cls: 'uni-calendar-empty-icon' });
-    setIcon(iconSpan, 'calendar');
-    this.emptyStateEl.createEl('div', { text: '未配置日历源' });
-    this.emptyStateEl.createEl('div', { text: '在设置中添加日历源以查看事件' });
-    const openSettingsBtn = this.emptyStateEl.createEl('button', { text: '打开设置', cls: 'mod-cta' });
-    openSettingsBtn.addEventListener('click', () => this.plugin.openSettings());
-
-    this.updateEmptyState(this.plugin.settings.sources.length > 0);
   }
 
   private getLabel(): string {
