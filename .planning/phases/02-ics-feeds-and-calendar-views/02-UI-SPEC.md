@@ -44,7 +44,7 @@ Exceptions:
 - Month day cells: `min-height: 70px` (already established in Phase 1)
 - Week/Day hour cells: `min-height: 40px` week, `min-height: 48px` day (already established)
 - Event block minimum height: `20px` (ensures tap target meets 44px when combined with padding on mobile -- see touch target note below)
-- Mobile touch targets: All clickable event blocks must have at least `min-height: 32px` with `padding: 4px 8px`, yielding 40px effective touch area. Month view event bars use `min-height: 20px` with `padding: 2px 6px` (compact mode).
+- Mobile touch targets: All clickable event blocks must have at least `min-height: 32px` with `padding: 4px 8px`, yielding 40px effective touch area. Month view event bars use `min-height: 20px` with `padding: 4px 8px` (Phase 1 carry-over compact style; 4px/8px replaces the original 2px/6px to align with the 4px grid).
 
 ---
 
@@ -54,12 +54,14 @@ All sizes reference Obsidian CSS variables for theme consistency.
 
 | Role | Size | Weight | Line Height | Usage |
 |------|------|--------|-------------|-------|
-| Body | `var(--font-ui-small)` (~13px) | 400 | 1.4 | Event bar text in month view, modal body text |
-| Label | `var(--font-ui-smaller)` (~11px) | 500 | 1.3 | Hour labels, overflow "+N more" indicator, event time range |
-| Heading | `1.1em` (~15px) | 700 | 1.2 | Toolbar month/date label (already established) |
+| Body | `var(--font-ui-small)` (~13px) | 400 | 1.4 | Event bar text in month view, modal body text, event time range, hour labels, overflow "+N more" indicator |
+| Label | `var(--font-ui-smaller)` (~11px) | 400 | 1.3 | Hour labels, overflow "+N more" indicator, event time range in month view |
+| Heading | `1.1em` (~15px) | 600 | 1.2 | Toolbar month/date label (already established) |
 | Modal Title | `var(--font-ui-medium)` (~16px) | 600 | 1.3 | Event detail modal title |
 
-**Weights used:** 400 (normal body/description), 600 (semibold for modal title, event title in week/day blocks)
+**Weights used:** 400 (body text, labels, descriptions, time ranges) and 600 (headings, event titles in week/day blocks, modal title). Two weights only.
+
+**Primary visual focal point:** The calendar grid body is the primary visual anchor. In month view, the day cells with their event bars draw first attention; in week/day view, the time axis and positioned event blocks form the primary focal zone.
 
 ---
 
@@ -105,12 +107,12 @@ This plugin inherits all surface and text colors from the active Obsidian theme.
 
 - Container: `display: flex; align-items: center;`
 - Left border: `border-left: 3px solid {sourceColor}; border-radius: 2px;`
-- Padding: `2px 6px`
+- Padding: `4px 8px`
 - Background: `var(--background-secondary)`
 - Font: `var(--font-ui-smaller)`, weight 400, color `var(--text-normal)`
-- Time prefix: `var(--font-ui-smaller)`, weight 500, color `var(--text-muted)`, margin-right `4px`
+- Time prefix: `var(--font-ui-smaller)`, weight 400, color `var(--text-muted)`, margin-right `4px`
 - Text overflow: `overflow: hidden; text-overflow: ellipsis; white-space: nowrap;`
-- Margin between bars: `2px 0`
+- Margin between bars: `4px 0`
 - Cursor: `pointer`
 - Hover: `background: var(--background-modifier-hover)`
 - All-day events: No time prefix, just title. Placed before timed events.
@@ -141,8 +143,8 @@ This plugin inherits all surface and text colors from the active Obsidian theme.
 ### OverflowIndicator (Month View "+N more")
 
 - Text: `+{N} more` (Chinese: `+{N} 更多`)
-- Font: `var(--font-ui-smaller)`, weight 500, color `var(--text-accent)`
-- Padding: `2px 6px`
+- Font: `var(--font-ui-smaller)`, weight 400, color `var(--text-accent)`
+- Padding: `4px 8px`
 - Cursor: `pointer`
 - Hover: `text-decoration: underline`
 - Click action: Switch to day view for that date (Mode 2 only)
