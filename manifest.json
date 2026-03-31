@@ -3,7 +3,7 @@
 	"name": "UniCalendar",
 	"version": "0.1.0",
 	"minAppVersion": "0.15.0",
-	"description": "Unified calendar view syncing events from Google Calendar, CalDAV, and ICS feeds.",
+	"description": "A unified calendar view syncing events from Google Calendar, CalDAV, and ICS feeds into one beautiful interface.",
 	"author": "yinsh",
 	"isDesktopOnly": false
 }
