@@ -1,0 +1,118 @@
+.uni-calendar-view {
+  padding: var(--size-4-4);
+  font-family: var(--font-interface);
+  color: var(--text-normal);
+  background: var(--background-primary);
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.uni-calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--size-4-3);
+}
+
+.uni-calendar-nav {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.uni-calendar-nav button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-normal);
+  padding: var(--size-4-2);
+  border-radius: var(--radius-m);
+}
+
+.uni-calendar-nav button:hover {
+  background: var(--background-secondary);
+}
+
+.uni-calendar-grid-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.uni-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 1px;
+  flex: 1;
+  background: var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: hidden;
+}
+
+.uni-calendar-day-header {
+  padding: var(--size-4-2);
+  text-align: center;
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  background: var(--background-secondary);
+  font-weight: 600;
+}
+
+.uni-calendar-day {
+  padding: var(--size-4-2);
+  min-height: 60px;
+  background: var(--background-primary);
+  font-size: var(--font-ui-small);
+}
+
+.uni-calendar-day-outside {
+  color: var(--text-faint);
+  background: var(--background-secondary);
+}
+
+.uni-calendar-day-today {
+  background: color-mix(in srgb, var(--interactive-accent) 10%, var(--background-primary));
+  font-weight: 700;
+}
+
+.uni-calendar-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--background-primary) 85%, transparent);
+  z-index: 10;
+  gap: var(--size-4-4);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.uni-calendar-empty .uni-calendar-empty-icon {
+  width: 48px;
+  height: 48px;
+}
+
+.uni-calendar-empty .uni-calendar-empty-icon svg {
+  width: 48px;
+  height: 48px;
+}
+
+.uni-calendar-sync-status {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  padding: var(--size-4-2) var(--size-4-4);
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+  border-top: 1px solid var(--background-modifier-border);
+  margin-top: auto;
+}
+
+.uni-calendar-sync-error {
+  color: var(--text-error);
+  cursor: pointer;
+}
