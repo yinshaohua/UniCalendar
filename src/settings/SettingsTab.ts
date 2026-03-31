@@ -217,7 +217,8 @@ class AddSourceModal extends Modal {
     let enabled = true;
 
     // Type-specific state
-    let calendarId = 'primary';
+    let clientId = '';
+    let clientSecret = '';
     let serverUrl = '';
     let username = '';
     let password = '';
@@ -249,12 +250,20 @@ class AddSourceModal extends Modal {
     // Type-specific fields
     if (type === 'google') {
       new Setting(contentEl)
-        .setName('Calendar ID')
-        .setDesc('Google Calendar ID (use "primary" for your main calendar)')
+        .setName('Client ID')
+        .setDesc('OAuth2 Client ID from Google Cloud Console')
         .addText(text => text
-          .setPlaceholder('primary')
-          .setValue(calendarId)
-          .onChange(value => { calendarId = value; }));
+          .setPlaceholder('xxxx.apps.googleusercontent.com')
+          .onChange(value => { clientId = value; }));
+
+      new Setting(contentEl)
+        .setName('Client Secret')
+        .setDesc('OAuth2 Client Secret from Google Cloud Console')
+        .addText(text => {
+          text.setPlaceholder('GOCSPX-xxxx')
+            .onChange(value => { clientSecret = value; });
+          text.inputEl.type = 'password';
+        });
     } else if (type === 'caldav') {
       new Setting(contentEl)
         .setName('Server URL')
@@ -279,7 +288,7 @@ class AddSourceModal extends Modal {
 
       new Setting(contentEl)
         .setName('Calendar path')
-        .setDesc('Optional path to specific calendar on the server')
+        .setDesc('Optional — auto-discovered if left empty')
         .addText(text => text
           .setPlaceholder('/calendars/default/')
           .onChange(value => { calendarPath = value; }));
@@ -318,7 +327,11 @@ class AddSourceModal extends Modal {
       };
 
       if (type === 'google') {
-        source.google = { calendarId: calendarId || 'primary' };
+        if (!clientId.trim() || !clientSecret.trim()) {
+          new Notice('Please enter both Client ID and Client Secret.');
+          return;
+        }
+        source.google = { clientId: clientId.trim(), clientSecret: clientSecret.trim() };
       } else if (type === 'caldav') {
         if (!serverUrl.trim()) {
           new Notice('Please enter the CalDAV server URL.');
@@ -373,7 +386,8 @@ class EditSourceModal extends Modal {
     let enabled = source.enabled;
 
     // Type-specific mutable copies
-    let calendarId = source.google?.calendarId ?? 'primary';
+    let clientId = source.google?.clientId ?? '';
+    let clientSecret = source.google?.clientSecret ?? '';
     let serverUrl = source.caldav?.serverUrl ?? '';
     let username = source.caldav?.username ?? '';
     let password = source.caldav?.password ?? '';
@@ -411,11 +425,20 @@ class EditSourceModal extends Modal {
     // Type-specific fields
     if (source.type === 'google') {
       new Setting(contentEl)
-        .setName('Calendar ID')
-        .setDesc('Google Calendar ID (use "primary" for your main calendar)')
+        .setName('Client ID')
+        .setDesc('OAuth2 Client ID from Google Cloud Console')
         .addText(text => text
-          .setValue(calendarId)
-          .onChange(value => { calendarId = value; }));
+          .setValue(clientId)
+          .onChange(value => { clientId = value; }));
+
+      new Setting(contentEl)
+        .setName('Client Secret')
+        .setDesc('OAuth2 Client Secret from Google Cloud Console')
+        .addText(text => {
+          text.setValue(clientSecret)
+            .onChange(value => { clientSecret = value; });
+          text.inputEl.type = 'password';
+        });
     } else if (source.type === 'caldav') {
       new Setting(contentEl)
         .setName('Server URL')
@@ -440,7 +463,7 @@ class EditSourceModal extends Modal {
 
       new Setting(contentEl)
         .setName('Calendar path')
-        .setDesc('Optional path to specific calendar on the server')
+        .setDesc('Optional — auto-discovered if left empty')
         .addText(text => text
           .setValue(calendarPath)
           .onChange(value => { calendarPath = value; }));
@@ -485,7 +508,7 @@ class EditSourceModal extends Modal {
       };
 
       if (source.type === 'google') {
-        updated.google = { calendarId: calendarId || 'primary' };
+        updated.google = { clientId: clientId.trim(), clientSecret: clientSecret.trim() };
       } else if (source.type === 'caldav') {
         updated.caldav = {
           serverUrl: serverUrl.trim(),
