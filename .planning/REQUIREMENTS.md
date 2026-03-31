@@ -29,12 +29,12 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **EVNT-02**: User can click an event to see full details (title, time, location, description)
 - [ ] **EVNT-03**: User sees recurring events correctly expanded from RRULE
 - [ ] **EVNT-04**: User sees events displayed in their local timezone regardless of source timezone
-- [ ] **EVNT-05**: User sees a sync status indicator showing last sync time and sync-in-progress
+- [x] **EVNT-05**: User sees a sync status indicator showing last sync time and sync-in-progress
 
 ### Infrastructure
 
-- [ ] **INFR-01**: User can view previously synced events when offline
-- [ ] **INFR-02**: User can add, edit, and remove calendar sources in settings
+- [x] **INFR-01**: User can view previously synced events when offline
+- [x] **INFR-02**: User can add, edit, and remove calendar sources in settings
 - [ ] **INFR-03**: User sees an Apple Calendar-inspired UI with clean design, rounded corners, and soft colors
 - [ ] **INFR-04**: Plugin works on both Obsidian desktop and mobile
 
@@ -94,9 +94,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | EVNT-02 | Phase 2 | Pending |
 | EVNT-03 | Phase 2 | Pending |
 | EVNT-04 | Phase 2 | Pending |
-| EVNT-05 | Phase 1 | Pending |
-| INFR-01 | Phase 1 | Pending |
-| INFR-02 | Phase 1 | Pending |
+| EVNT-05 | Phase 1 | Complete |
+| INFR-01 | Phase 1 | Complete |
+| INFR-02 | Phase 1 | Complete |
 | INFR-03 | Phase 5 | Pending |
 | INFR-04 | Phase 1 | Pending |
 
