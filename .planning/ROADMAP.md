@@ -66,7 +66,11 @@ Plans:
   2. User sees DingTalk calendar events synced and displayed correctly in the calendar views
   3. CalDAV events from other providers (Nextcloud, iCloud, Fastmail) sync without errors
   4. CalDAV sync errors surface clearly in the sync status indicator with actionable messages
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 03-01-PLAN.md -- CalDavSyncAdapter: PROPFIND discovery, REPORT event fetch, XML parsing, SyncManager wiring
+- [ ] 03-02-PLAN.md -- Settings UI calendar discovery: discover button, calendar selection, DingTalk verification
 
 ### Phase 4: Google Calendar and Multi-Source Unification
 **Goal**: Users can connect Google Calendar via OAuth2 and see events from all three source types merged into one unified view
