@@ -8,6 +8,7 @@ export interface CalendarEvent {
   location?: string;
   description?: string;
   recurrenceId?: string;
+  uid?: string;  // iCalendar UID or Google event ID for cross-source dedup
 }
 
 export interface CalendarSource {
