@@ -15,19 +15,19 @@ Users can see all their calendar events from multiple sources in one clean, reli
 - ✓ Obsidian plugin scaffold with TypeScript + esbuild — existing
 - ✓ ESLint with Obsidian-specific rules — existing
 - ✓ Desktop & mobile compatible manifest — existing
+- ✓ CalDAV protocol support (discovery, event sync, DingTalk fallback) — Validated in Phase 3
+- ✓ Offline cache for previously synced events — Validated in Phase 1
+- ✓ Calendar source management (add/remove/configure sources) — Validated in Phase 1
+- ✓ Settings UI for managing connections and preferences — Validated in Phase 1
+- ✓ ICS feed import — Validated in Phase 2
+- ✓ Color-coded events by calendar source — Validated in Phase 2
 
 ### Active
 
 - [ ] Google Calendar read-only sync
-- [ ] CalDAV protocol support (for DingTalk, Apple Calendar, Nextcloud, etc.)
-- [ ] ICS feed import
-- [ ] Full page calendar view with month/week/day modes
+- [ ] Full page calendar view with month/week/day modes (rendered, needs polish)
 - [ ] Apple Calendar-inspired UI (clean, rounded corners, soft colors)
-- [ ] Color-coded events by calendar source
-- [ ] Offline cache for previously synced events
 - [ ] Multi-source event merging into unified timeline
-- [ ] Calendar source management (add/remove/configure sources)
-- [ ] Settings UI for managing connections and preferences
 
 ### Out of Scope
 
@@ -85,4 +85,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-03-31 after initialization*
+*Last updated: 2026-04-02 after Phase 3 completion*
