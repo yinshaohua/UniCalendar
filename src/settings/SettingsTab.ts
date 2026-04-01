@@ -239,6 +239,7 @@ class AddSourceModal extends Modal {
     let username = '';
     let password = '';
     let calendarPath = '';
+    let calendarDisplayName = '';
     let feedUrl = '';
 
     // Common fields
@@ -283,7 +284,6 @@ class AddSourceModal extends Modal {
     } else if (type === 'caldav') {
       new Setting(contentEl)
         .setName('服务器地址')
-        .setDesc('CalDAV 服务器 URL')
         .addText(text => text
           .setPlaceholder('https://calendar.dingtalk.com')
           .onChange(value => { serverUrl = value; }));
@@ -306,7 +306,6 @@ class AddSourceModal extends Modal {
       const discoveryContainer = contentEl.createDiv();
       new Setting(discoveryContainer)
         .setName('自动发现日历')
-        .setDesc('输入服务器地址和凭证后，点击发现可用日历')
         .addButton(btn => btn
           .setButtonText('发现日历')
           .onClick(async () => {
@@ -324,10 +323,15 @@ class AddSourceModal extends Modal {
               if (calendars.length === 0) {
                 new Notice('未发现任何日历');
               } else {
-                new Notice(`发现 ${calendars.length} 个日历`);
-                this.renderCalendarSelection(discoveryContainer, calendars, (cal) => {
+                new CalendarPickerModal(this.app, calendars, (cal) => {
                   calendarPath = cal.href;
-                });
+                  calendarDisplayName = cal.displayName || cal.href;
+                  selectedCalLabel.empty();
+                  selectedCalLabel.createEl('span', {
+                    text: `已选日历: ${calendarDisplayName}`,
+                    attr: { style: 'font-size: var(--font-ui-small); color: var(--text-muted);' },
+                  });
+                }).open();
               }
             } catch (err) {
               new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
@@ -337,12 +341,14 @@ class AddSourceModal extends Modal {
             }
           }));
 
-      new Setting(contentEl)
-        .setName('日历路径')
-        .setDesc('可选 — 可手动输入，或通过上方发现按钮自动填充')
-        .addText(text => text
-          .setPlaceholder('/calendars/default/')
-          .onChange(value => { calendarPath = value; }));
+      const selectedCalLabel = discoveryContainer.createDiv({
+        cls: 'setting-item',
+        attr: { style: 'padding-top: 0;' },
+      });
+      selectedCalLabel.createEl('span', {
+        text: calendarPath ? `已选日历: ${calendarDisplayName || calendarPath}` : '',
+        attr: { style: 'font-size: var(--font-ui-small); color: var(--text-muted);' },
+      });
     } else if (type === 'ics') {
       new Setting(contentEl)
         .setName('订阅链接')
@@ -393,6 +399,7 @@ class AddSourceModal extends Modal {
           username: username.trim(),
           password,
           calendarPath: calendarPath.trim() || undefined,
+          calendarDisplayName: calendarDisplayName.trim() || undefined,
         };
       } else if (type === 'ics') {
         if (!feedUrl.trim()) {
