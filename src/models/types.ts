@@ -8,6 +8,7 @@ export interface CalendarEvent {
   location?: string;
   description?: string;
   recurrenceId?: string;
+  uid?: string;  // iCalendar UID or Google event ID for cross-source dedup
 }
 
 export interface CalendarSource {
@@ -16,7 +17,16 @@ export interface CalendarSource {
   type: 'google' | 'caldav' | 'ics';
   color: string;                 // Hex color
   enabled: boolean;
-  google?: { clientId: string; clientSecret: string; };
+  google?: {
+    clientId: string;
+    clientSecret: string;
+    accessToken?: string;
+    refreshToken?: string;
+    tokenExpiry?: number;       // Unix timestamp in ms
+    calendarId?: string;        // Selected calendar ID from discovery
+    calendarName?: string;      // Display name of selected calendar
+    redirectUri?: string;       // User's configured redirect URI for OAuth
+  };
   caldav?: { serverUrl: string; username: string; password: string; calendarPath?: string; calendarDisplayName?: string; };
   ics?: { feedUrl: string; };
 }

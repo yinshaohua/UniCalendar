@@ -1,4 +1,6 @@
 // Minimal mock of Obsidian API for unit testing
+import { vi } from 'vitest';
+
 export class Plugin {}
 export class ItemView {
   containerEl = { children: [null, { empty: () => {} }] };
@@ -15,6 +17,5 @@ export class Setting {
 }
 export class Modal {}
 export class Notice {}
-export function requestUrl() {
-  return Promise.resolve({ json: {}, text: '', status: 200 });
-}
+export const requestUrl = vi.fn().mockResolvedValue({ json: {}, text: '', status: 200 });
+export const Platform = { isDesktop: true, isMobile: false, isDesktopApp: true, isMobileApp: false };
