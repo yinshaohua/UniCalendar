@@ -1,6 +1,7 @@
 import { ItemView, WorkspaceLeaf, Notice, setIcon } from 'obsidian';
 import { CalendarEvent, SyncState } from '../models/types';
 import { EventStore } from '../store/EventStore';
+import { EventDetailModal } from './EventDetailModal';
 
 export const VIEW_TYPE_CALENDAR = 'uni-calendar-view';
 
@@ -1120,8 +1121,7 @@ export class CalendarView extends ItemView {
   }
 
   private showEventDetail(event: CalendarEvent): void {
-    // Placeholder — EventDetailModal added in Plan 02-05
-    new Notice(`${event.title} (${event.start})`);
+    new EventDetailModal(this.app, event, this.plugin.settings.sources).open();
   }
 
   private formatTimeSince(timestamp: number): string {
