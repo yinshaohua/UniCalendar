@@ -1,4 +1,4 @@
-import { Plugin, WorkspaceLeaf } from 'obsidian';
+import { Notice, Plugin, WorkspaceLeaf } from 'obsidian';
 import {
   UniCalendarSettings,
   UniCalendarData,
@@ -94,9 +94,14 @@ export default class UniCalendarPlugin extends Plugin {
   }
 
   async triggerSync(): Promise<void> {
-    await this.syncManager.syncAll(this.settings.sources);
-    await this.savePluginData();
-    this.refreshCalendarViews();
+    try {
+      await this.syncManager.syncAll(this.settings.sources);
+      await this.savePluginData();
+      this.refreshCalendarViews();
+    } catch (err) {
+      console.error('[UniCalendar] Sync failed:', err);
+      new Notice('同步失败: ' + (err instanceof Error ? err.message : String(err)));
+    }
   }
 
   private refreshCalendarViews(): void {

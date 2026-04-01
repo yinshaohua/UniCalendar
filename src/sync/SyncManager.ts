@@ -48,8 +48,10 @@ export class SyncManager {
         if (source.type === 'ics') {
           const events = await this.icsAdapter.sync(source, rangeStart, rangeEnd);
           this.eventStore.replaceEvents(source.id, events);
+          console.log(`[UniCalendar] Synced ${events.length} events from ICS source "${source.name}"`);
+        } else {
+          console.warn(`[UniCalendar] Source "${source.name}" type "${source.type}" is not yet supported. Use ICS type instead.`);
         }
-        // Other types (google, caldav) will be added in future phases
       }),
     );
 
