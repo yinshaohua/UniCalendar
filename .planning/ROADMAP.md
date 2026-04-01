@@ -47,8 +47,15 @@ Plans:
   3. User can switch between month/week/day views and navigate between dates using controls and keyboard arrows
   4. User can click any event to see its full details (title, time, location, description)
   5. Events from different ICS sources appear in distinct colors, recurring events expand correctly, and all times display in the user's local timezone
-**Plans**: TBD
+**Plans:** 5 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 02-01-PLAN.md -- ICS sync adapter: ical.js parsing, RRULE expansion, timezone handling, SyncManager wiring
+- [ ] 02-02-PLAN.md -- EventStore date range query and month overflow mode setting
+- [ ] 02-03-PLAN.md -- Month view event bar rendering with overflow handling
+- [ ] 02-04-PLAN.md -- Week/day view event block rendering with overlap detection and current time indicator
+- [ ] 02-05-PLAN.md -- Event detail modal, keyboard navigation, sync-to-render wiring, visual checkpoint
 
 ### Phase 3: CalDAV Integration
 **Goal**: Users can connect CalDAV calendar servers -- especially DingTalk -- and see those events alongside ICS feed events
@@ -91,7 +98,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation and Infrastructure | 0/3 | Planning complete | - |
-| 2. ICS Feeds and Calendar Views | 0/? | Not started | - |
+| 2. ICS Feeds and Calendar Views | 0/5 | Planning complete | - |
 | 3. CalDAV Integration | 0/? | Not started | - |
 | 4. Google Calendar and Multi-Source Unification | 0/? | Not started | - |
 | 5. Apple Calendar UI Polish | 0/? | Not started | - |
