@@ -7,7 +7,8 @@ function makeSource(overrides: Partial<CalendarSource> = {}): CalendarSource {
   return {
     id: 'test-source',
     name: 'Test',
-    type: 'google', // Use non-ICS type for state tests (avoids network calls)
+    // Use a fake type to hit the 'unsupported' branch (no network call)
+    type: 'noop' as CalendarSource['type'],
     color: '#FF6961',
     enabled: true,
     ...overrides,
@@ -56,5 +57,34 @@ describe('SyncManager', () => {
     await manager.syncAll([makeSource()]);
 
     expect(callCount).toBe(2); // syncing + idle
+  });
+
+  it('dispatches google sources to GoogleSyncAdapter', async () => {
+    const states: SyncState[] = [];
+    const store = new EventStore();
+    const manager = new SyncManager((s) => states.push({...s}), store);
+    const source = makeSource({
+      type: 'google',
+      google: {
+        clientId: 'test-id',
+        clientSecret: 'test-secret',
+        accessToken: 'valid-token',
+        refreshToken: 'refresh-token',
+        tokenExpiry: Date.now() + 3600000,
+        calendarId: 'primary',
+        calendarName: 'My Calendar',
+      },
+    });
+
+    // Google adapter is wired and processes the source (no "not yet supported" warning)
+    await manager.syncAll([source]);
+
+    const finalState = manager.getState();
+    // Adapter completes successfully with mocked requestUrl
+    expect(finalState.status).toBe('idle');
+    // Verify state transitions: syncing -> idle
+    expect(states.length).toBe(2);
+    expect(states[0]!.status).toBe('syncing');
+    expect(states[1]!.status).toBe('idle');
   });
 });

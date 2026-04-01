@@ -1,4 +1,5 @@
 import { CalendarEvent, CalendarSource, EventCache, DEFAULT_CACHE, SOURCE_COLORS } from '../models/types';
+import { deduplicateEvents } from './EventDeduplicator';
 
 function computeCacheWindow(): { start: string; end: string } {
   const now = new Date();
@@ -17,6 +18,7 @@ export class EventStore {
   private lastSyncTime: number | null = null;
   private cacheWindowStart: string;
   private cacheWindowEnd: string;
+  private sourceOrder: string[] = [];
 
   constructor() {
     const window = computeCacheWindow();
@@ -31,6 +33,10 @@ export class EventStore {
     this.cacheWindowEnd = cache.cacheWindowEnd;
   }
 
+  setSourceOrder(order: string[]): void {
+    this.sourceOrder = order;
+  }
+
   save(): EventCache {
     return {
       events: [...this.events],
@@ -41,24 +47,26 @@ export class EventStore {
   }
 
   getEvents(): CalendarEvent[] {
-    return [...this.events];
+    return deduplicateEvents([...this.events], this.sourceOrder);
   }
 
   getEventsForDate(dateStr: string): CalendarEvent[] {
-    return this.events.filter(event => {
+    const filtered = this.events.filter(event => {
       const eventStart = event.start.slice(0, 10);
       const eventEnd = event.end.slice(0, 10);
       return eventStart <= dateStr && eventEnd >= dateStr;
     });
+    return deduplicateEvents(filtered, this.sourceOrder);
   }
 
   getEventsForDateRange(startDate: string, endDate: string): CalendarEvent[] {
-    return this.events.filter(event => {
+    const filtered = this.events.filter(event => {
       const eventStart = event.start.slice(0, 10);
       const eventEnd = event.end.slice(0, 10);
       // Event overlaps range if it starts before range ends AND ends after range starts
       return eventStart <= endDate && eventEnd >= startDate;
     });
+    return deduplicateEvents(filtered, this.sourceOrder);
   }
 
   static getSourceColor(sourceId: string, sources: CalendarSource[]): string {

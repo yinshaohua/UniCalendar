@@ -1,6 +1,8 @@
 import { CalendarSource, SyncState } from '../models/types';
 import { IcsSyncAdapter } from './IcsSyncAdapter';
 import { CalDavSyncAdapter } from './CalDavSyncAdapter';
+import { GoogleSyncAdapter } from './GoogleSyncAdapter';
+import { GoogleAuthHelper } from './GoogleAuthHelper';
 import { EventStore } from '../store/EventStore';
 
 export class SyncManager {
@@ -9,6 +11,8 @@ export class SyncManager {
   private eventStore: EventStore;
   private icsAdapter: IcsSyncAdapter = new IcsSyncAdapter();
   private caldavAdapter: CalDavSyncAdapter = new CalDavSyncAdapter(this.icsAdapter);
+  private authHelper: GoogleAuthHelper = new GoogleAuthHelper();
+  private googleAdapter: GoogleSyncAdapter = new GoogleSyncAdapter(this.authHelper);
 
   constructor(onStateChange: (state: SyncState) => void, eventStore: EventStore) {
     this.onStateChange = onStateChange;
@@ -59,8 +63,12 @@ export class SyncManager {
           const events = await this.caldavAdapter.sync(source, rangeStart, rangeEnd);
           this.eventStore.replaceEvents(source.id, events);
           console.log(`[UniCalendar] Synced ${events.length} events from CalDAV source "${source.name}"`);
+        } else if (source.type === 'google') {
+          const events = await this.googleAdapter.sync(source, rangeStart, rangeEnd);
+          this.eventStore.replaceEvents(source.id, events);
+          console.log(`[UniCalendar] Synced ${events.length} events from Google source "${source.name}"`);
         } else {
-          console.warn(`[UniCalendar] Source "${source.name}" type "${source.type}" is not yet supported.`);
+          console.warn(`[UniCalendar] Source "${source.name}" type "${String(source.type)}" is not yet supported.`);
         }
       }),
     );
