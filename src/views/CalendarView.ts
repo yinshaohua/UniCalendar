@@ -1,5 +1,6 @@
 import { ItemView, WorkspaceLeaf, Notice, setIcon } from 'obsidian';
-import { SyncState } from '../models/types';
+import { CalendarEvent, SyncState } from '../models/types';
+import { EventStore } from '../store/EventStore';
 
 export const VIEW_TYPE_CALENDAR = 'uni-calendar-view';
 
@@ -291,6 +292,57 @@ const CALENDAR_CSS = `
   min-height: 48px;
   background: var(--background-primary);
   border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+}
+
+/* === Event Bars (Month View) === */
+.uni-calendar-day-events {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+.uni-calendar-event-bar {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  background: var(--background-secondary);
+  border-radius: 2px;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-normal);
+  min-height: 20px;
+}
+.uni-calendar-event-bar:hover {
+  background: var(--background-modifier-hover);
+}
+.uni-calendar-event-bar-time {
+  color: var(--text-muted);
+  margin-right: 4px;
+  font-size: var(--font-ui-smaller);
+  flex-shrink: 0;
+}
+.uni-calendar-event-bar-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uni-calendar-overflow {
+  padding: 4px 8px;
+  font-size: var(--font-ui-smaller);
+  color: var(--text-accent);
+  cursor: pointer;
+}
+.uni-calendar-overflow:hover {
+  text-decoration: underline;
+}
+.uni-calendar-day-number-link {
+  cursor: pointer;
+}
+.uni-calendar-day-number-link:hover {
+  text-decoration: underline;
 }
 
 `;
@@ -610,10 +662,66 @@ export class CalendarView extends ItemView {
       if (isToday) cls += ' uni-calendar-day-today';
 
       const cell = gridEl.createDiv({ cls });
-      if (isToday) {
-        cell.createEl('span', { text: String(displayDay), cls: 'uni-calendar-day-number' });
-      } else {
-        cell.setText(String(displayDay));
+
+      // Day number — clickable to switch to day view
+      const dayNumberEl = cell.createEl('span', {
+        text: String(displayDay),
+        cls: isToday ? 'uni-calendar-day-number uni-calendar-day-number-link' : 'uni-calendar-day-number-link',
+      });
+      dayNumberEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const d = new Date(dateStr);
+        this.displayYear = d.getFullYear();
+        this.displayMonth = d.getMonth();
+        this.displayDay = d.getDate();
+        this.switchViewMode('day');
+      });
+
+      // Render events for this day
+      const events = this.plugin.eventStore.getEventsForDate(dateStr);
+      events.sort((a: CalendarEvent, b: CalendarEvent) => {
+        if (a.allDay && !b.allDay) return -1;
+        if (!a.allDay && b.allDay) return 1;
+        return a.start.localeCompare(b.start);
+      });
+
+      if (events.length > 0) {
+        const eventsEl = cell.createDiv({ cls: 'uni-calendar-day-events' });
+        const overflowMode = this.plugin.settings.monthOverflowMode;
+        const maxVisible = (overflowMode === 'collapse' && events.length > 3) ? 3 : events.length;
+
+        for (let ei = 0; ei < maxVisible; ei++) {
+          const event = events[ei]!;
+          const bar = eventsEl.createDiv({ cls: 'uni-calendar-event-bar' });
+          const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
+          bar.style.borderLeft = `3px solid ${sourceColor}`;
+          if (!event.allDay) {
+            const timeStr = new Date(event.start).toLocaleTimeString('zh-CN', {
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: false,
+            });
+            bar.createSpan({ text: timeStr, cls: 'uni-calendar-event-bar-time' });
+          }
+          bar.createSpan({ text: event.title, cls: 'uni-calendar-event-bar-title' });
+          bar.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.showEventDetail(event);
+          });
+        }
+
+        if (overflowMode === 'collapse' && events.length > 3) {
+          const overflow = eventsEl.createDiv({ cls: 'uni-calendar-overflow' });
+          overflow.setText(`+${events.length - 3} 更多`);
+          overflow.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const d = new Date(dateStr);
+            this.displayYear = d.getFullYear();
+            this.displayMonth = d.getMonth();
+            this.displayDay = d.getDate();
+            this.switchViewMode('day');
+          });
+        }
       }
     }
   }
@@ -662,6 +770,15 @@ export class CalendarView extends ItemView {
       gridEl.createDiv({ cls: 'uni-calendar-day-hour-label', text: label });
       gridEl.createDiv({ cls: 'uni-calendar-day-hour-cell' });
     }
+  }
+
+  rerender(): void {
+    this.refreshView();
+  }
+
+  private showEventDetail(event: CalendarEvent): void {
+    // Placeholder — EventDetailModal added in Plan 02-05
+    new Notice(`${event.title} (${event.start})`);
   }
 
   private formatTimeSince(timestamp: number): string {
