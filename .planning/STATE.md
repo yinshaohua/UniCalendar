@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to plan
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-04-01T17:55:24.380Z"
+stopped_at: Completed 04-01-PLAN.md, 04-02-PLAN.md (Wave 1)
+last_updated: "2026-04-02T19:00:00.000Z"
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 11
-  completed_plans: 11
+  total_plans: 14
+  completed_plans: 12
 ---
 
 # Project State
@@ -46,6 +46,7 @@ Plan: 1 of 4 complete
 - Trend: -
 
 *Updated after each plan completion*
+| Phase 04 P02 | 3min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -60,6 +61,7 @@ Recent decisions affecting current work:
 - 01-01: Used --legacy-peer-deps for vitest install due to @types/node version conflict
 - 01-01: Non-null assertion on SOURCE_COLORS[0] for noUncheckedIndexedAccess compatibility
 - 04-01: Web Crypto API for PKCE (mobile compatible), iCalUID preferred for uid field, 5-min token refresh buffer
+- 04-02: Dedup is a pure function with sourceOrder parameter, runs at read time
 
 ### Pending Todos
 
@@ -72,6 +74,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-02T18:37:00Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-04-02T19:00:00Z
+Stopped at: Completed Wave 1 (04-01, 04-02)
 Resume file: .planning/phases/04-google-calendar-and-multi-source-unification/04-01-SUMMARY.md
