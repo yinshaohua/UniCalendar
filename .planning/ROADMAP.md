@@ -87,7 +87,7 @@ Plans:
 Plans:
 - [x] 04-01-PLAN.md -- GoogleAuthHelper (OAuth2 PKCE), GoogleSyncAdapter (API client), type extensions, tests
 - [x] 04-02-PLAN.md -- EventDeduplicator (UID + time+title fallback), ICS uid backfill, tests
-- [ ] 04-03-PLAN.md -- SyncManager/EventStore/Settings/main.ts wiring, OAuth flow UI, human verification
+- [x] 04-03-PLAN.md -- SyncManager/EventStore/Settings/main.ts wiring, OAuth flow UI, human verification
 
 ### Phase 5: Apple Calendar UI Polish
 **Goal**: The calendar achieves Apple Calendar-inspired visual quality with clean design, rounded corners, soft colors, and polished interactions
