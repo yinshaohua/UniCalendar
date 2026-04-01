@@ -415,48 +415,6 @@ class AddSourceModal extends Modal {
       this.onDone();
     });
   }
-
-  private renderCalendarSelection(
-    container: HTMLElement,
-    calendars: DiscoveredCalendar[],
-    onSelect: (cal: DiscoveredCalendar) => void,
-  ): void {
-    const existing = container.querySelector('.uni-calendar-discovery-list');
-    if (existing) existing.remove();
-
-    const listEl = container.createDiv({ cls: 'uni-calendar-discovery-list' });
-    listEl.createEl('p', {
-      text: `发现 ${calendars.length} 个日历:`,
-      attr: { style: 'font-weight: 600; margin-top: var(--size-4-2);' },
-    });
-
-    let selectedHref = '';
-    for (const cal of calendars) {
-      const item = listEl.createDiv({
-        attr: { style: 'display: flex; align-items: center; padding: 6px 8px; cursor: pointer; border-radius: var(--radius-s); margin-bottom: 4px;' },
-      });
-      item.createEl('span', { text: cal.displayName || cal.href });
-      item.addEventListener('click', () => {
-        selectedHref = cal.href;
-        onSelect(cal);
-        listEl.querySelectorAll('div').forEach(el => {
-          (el as HTMLElement).style.background = '';
-        });
-        item.style.background = 'var(--interactive-accent)';
-        item.style.color = 'var(--text-on-accent)';
-        new Notice(`已选择: ${cal.displayName || cal.href}`);
-      });
-      item.addEventListener('mouseenter', () => {
-        if (selectedHref !== cal.href) item.style.background = 'var(--background-modifier-hover)';
-      });
-      item.addEventListener('mouseleave', () => {
-        if (selectedHref !== cal.href) {
-          item.style.background = '';
-          item.style.color = '';
-        }
-      });
-    }
-  }
 }
 
 class EditSourceModal extends Modal {
@@ -670,51 +628,49 @@ class EditSourceModal extends Modal {
     });
   }
 
-  private renderCalendarSelection(
-    container: HTMLElement,
-    calendars: DiscoveredCalendar[],
-    onSelect: (cal: DiscoveredCalendar) => void,
-  ): void {
-    const existing = container.querySelector('.uni-calendar-discovery-list');
-    if (existing) existing.remove();
+  onClose(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+}
 
-    const listEl = container.createDiv({ cls: 'uni-calendar-discovery-list' });
-    listEl.createEl('p', {
-      text: `发现 ${calendars.length} 个日历:`,
-      attr: { style: 'font-weight: 600; margin-top: var(--size-4-2);' },
-    });
+class CalendarPickerModal extends Modal {
+  private calendars: DiscoveredCalendar[];
+  private onSelect: (cal: DiscoveredCalendar) => void;
 
-    let selectedHref = '';
-    for (const cal of calendars) {
-      const item = listEl.createDiv({
-        attr: { style: 'display: flex; align-items: center; padding: 6px 8px; cursor: pointer; border-radius: var(--radius-s); margin-bottom: 4px;' },
+  constructor(app: App, calendars: DiscoveredCalendar[], onSelect: (cal: DiscoveredCalendar) => void) {
+    super(app);
+    this.calendars = calendars;
+    this.onSelect = onSelect;
+  }
+
+  onOpen(): void {
+    this.titleEl.setText(`选择日历 (${this.calendars.length})`);
+    const { contentEl } = this;
+    contentEl.empty();
+
+    for (const cal of this.calendars) {
+      const item = contentEl.createDiv({
+        cls: 'uni-calendar-picker-item',
+        attr: {
+          style: 'display: flex; align-items: center; padding: 8px 12px; cursor: pointer; border-radius: var(--radius-s); margin-bottom: 4px;',
+        },
       });
       item.createEl('span', { text: cal.displayName || cal.href });
       item.addEventListener('click', () => {
-        selectedHref = cal.href;
-        onSelect(cal);
-        listEl.querySelectorAll('div').forEach(el => {
-          (el as HTMLElement).style.background = '';
-          (el as HTMLElement).style.color = '';
-        });
-        item.style.background = 'var(--interactive-accent)';
-        item.style.color = 'var(--text-on-accent)';
-        new Notice(`已选择: ${cal.displayName || cal.href}`);
+        this.onSelect(cal);
+        this.close();
       });
       item.addEventListener('mouseenter', () => {
-        if (selectedHref !== cal.href) item.style.background = 'var(--background-modifier-hover)';
+        item.style.background = 'var(--background-modifier-hover)';
       });
       item.addEventListener('mouseleave', () => {
-        if (selectedHref !== cal.href) {
-          item.style.background = '';
-          item.style.color = '';
-        }
+        item.style.background = '';
       });
     }
   }
 
   onClose(): void {
-    const { contentEl } = this;
-    contentEl.empty();
+    this.contentEl.empty();
   }
 }
