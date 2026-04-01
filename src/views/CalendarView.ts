@@ -812,7 +812,7 @@ export class CalendarView extends ItemView {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
     const todayStr = this.getTodayStr();
-    const totalCells = 42;
+    const totalCells = 35;
 
     for (let i = 0; i < totalCells; i++) {
       const dayNum = i - startDayOfWeek + 1;
