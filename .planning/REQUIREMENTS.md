@@ -18,7 +18,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Data Sources
 
-- [ ] **SYNC-01**: User can sync events from Google Calendar (read-only via OAuth2)
+- [x] **SYNC-01**: User can sync events from Google Calendar (read-only via OAuth2)
 - [ ] **SYNC-02**: User can sync events from CalDAV servers (read-only, must work with DingTalk)
 - [ ] **SYNC-03**: User can import events from ICS feed URLs
 - [ ] **SYNC-04**: User sees events from all sources merged into one unified view
@@ -86,7 +86,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VIEW-04 | Phase 2 | Pending |
 | VIEW-05 | Phase 2 | Pending |
 | VIEW-06 | Phase 2 | Pending |
-| SYNC-01 | Phase 4 | Pending |
+| SYNC-01 | Phase 4 | Complete |
 | SYNC-02 | Phase 3 | Complete |
 | SYNC-03 | Phase 2 | Pending |
 | SYNC-04 | Phase 4 | Pending |

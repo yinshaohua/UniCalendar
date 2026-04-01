@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: Ready to plan
-stopped_at: Phase 4 context gathered
+stopped_at: Completed 04-01-PLAN.md
 last_updated: "2026-04-01T17:55:24.380Z"
 progress:
   total_phases: 5
@@ -19,12 +19,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Users can see all their calendar events from multiple sources in one clean, reliable view inside Obsidian -- especially sources like DingTalk calendar that existing plugins fail to support.
-**Current focus:** Phase 03 — caldav-integration
+**Current focus:** Phase 04 — google-calendar-and-multi-source-unification
 
 ## Current Position
 
 Phase: 4
-Plan: Not started
+Plan: 1 of 4 complete
 
 ## Performance Metrics
 
@@ -59,6 +59,7 @@ Recent decisions affecting current work:
 - Roadmap: DingTalk is the primary CalDAV acceptance target, not a secondary concern
 - 01-01: Used --legacy-peer-deps for vitest install due to @types/node version conflict
 - 01-01: Non-null assertion on SOURCE_COLORS[0] for noUncheckedIndexedAccess compatibility
+- 04-01: Web Crypto API for PKCE (mobile compatible), iCalUID preferred for uid field, 5-min token refresh buffer
 
 ### Pending Todos
 
@@ -71,6 +72,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-04-01T17:55:24.376Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-google-calendar-and-multi-source-unification/04-CONTEXT.md
+Last session: 2026-04-02T18:37:00Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: .planning/phases/04-google-calendar-and-multi-source-unification/04-01-SUMMARY.md
