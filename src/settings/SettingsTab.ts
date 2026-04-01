@@ -200,7 +200,7 @@ class AddSourceModal extends Modal {
 
     const types: Array<{ type: 'google' | 'caldav' | 'ics'; label: string; desc: string }> = [
       { type: 'google', label: 'Google 日历', desc: '通过 API 同步 Google 日历' },
-      { type: 'caldav', label: 'CalDAV', desc: 'CalDAV 服务器（钉钉、iCloud 等）' },
+      { type: 'caldav', label: 'CalDAV 日历', desc: 'CalDAV 服务器（Nextcloud、iCloud 等）' },
       { type: 'ics', label: 'ICS 订阅', desc: '订阅 ICS/iCal 日历链接' },
     ];
 
@@ -285,7 +285,7 @@ class AddSourceModal extends Modal {
       new Setting(contentEl)
         .setName('服务器地址')
         .addText(text => text
-          .setPlaceholder('https://calendar.dingtalk.com')
+          .setPlaceholder('https://example.com/caldav')
           .onChange(value => { serverUrl = value; }));
 
       new Setting(contentEl)

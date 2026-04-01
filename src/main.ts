@@ -57,6 +57,9 @@ export default class UniCalendarPlugin extends Plugin {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR);
     if (leaves.length > 0 && leaves[0]) {
       this.app.workspace.revealLeaf(leaves[0]);
+      if (this.settings.sources.length > 0) {
+        this.triggerSync();
+      }
       return;
     }
 
@@ -64,6 +67,9 @@ export default class UniCalendarPlugin extends Plugin {
     if (leaf) {
       await leaf.setViewState({ type: VIEW_TYPE_CALENDAR, active: true });
       this.app.workspace.revealLeaf(leaf);
+      if (this.settings.sources.length > 0) {
+        this.triggerSync();
+      }
     }
   }
 
@@ -91,6 +97,8 @@ export default class UniCalendarPlugin extends Plugin {
         view.rerender();
       }
     });
+    // Re-sync after settings change
+    this.triggerSync();
   }
 
   async triggerSync(): Promise<void> {
