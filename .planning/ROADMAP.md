@@ -82,7 +82,12 @@ Plans:
   2. User sees events from ICS, CalDAV, and Google Calendar merged into a single unified timeline without duplicates
   3. Google OAuth2 token refreshes automatically without requiring re-authentication
   4. Adding or removing any source type updates the unified view correctly
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 04-01-PLAN.md -- GoogleAuthHelper (OAuth2 PKCE), GoogleSyncAdapter (API client), type extensions, tests
+- [ ] 04-02-PLAN.md -- EventDeduplicator (UID + time+title fallback), ICS uid backfill, tests
+- [ ] 04-03-PLAN.md -- SyncManager/EventStore/Settings/main.ts wiring, OAuth flow UI, human verification
 
 ### Phase 5: Apple Calendar UI Polish
 **Goal**: The calendar achieves Apple Calendar-inspired visual quality with clean design, rounded corners, soft colors, and polished interactions
@@ -105,5 +110,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation and Infrastructure | 0/3 | Planning complete | - |
 | 2. ICS Feeds and Calendar Views | 0/5 | Planning complete | - |
 | 3. CalDAV Integration | 0/? | Not started | - |
-| 4. Google Calendar and Multi-Source Unification | 0/? | Not started | - |
+| 4. Google Calendar and Multi-Source Unification | 0/3 | Planning complete | - |
 | 5. Apple Calendar UI Polish | 0/? | Not started | - |
