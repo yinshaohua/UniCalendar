@@ -30,6 +30,7 @@ export interface UniCalendarSettings {
   sources: CalendarSource[];
   syncInterval: number;          // minutes
   defaultView: 'month' | 'week' | 'day';
+  monthOverflowMode: 'expand' | 'collapse';
 }
 
 export interface EventCache {
@@ -59,6 +60,7 @@ export const DEFAULT_SETTINGS: UniCalendarSettings = {
   sources: [],
   syncInterval: 15,
   defaultView: 'month',
+  monthOverflowMode: 'expand',
 };
 
 export const DEFAULT_CACHE: EventCache = {

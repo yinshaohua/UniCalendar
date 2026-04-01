@@ -96,6 +96,20 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
+    new Setting(containerEl)
+      .setName('月视图事件显示')
+      .setDesc('控制月视图中事件过多时的显示方式')
+      .addDropdown(dropdown => dropdown
+        .addOptions({
+          'expand': '显示全部事件 (单元格自动扩展)',
+          'collapse': '最多显示3个, 超出折叠',
+        })
+        .setValue(this.plugin.settings.monthOverflowMode)
+        .onChange(async (value) => {
+          this.plugin.settings.monthOverflowMode = value as 'expand' | 'collapse';
+          await this.plugin.saveSettings();
+        }));
+
     // Section 2: Calendar Sources
     containerEl.createEl('h2', { text: '日历源' });
 
