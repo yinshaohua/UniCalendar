@@ -52,7 +52,7 @@ Plans:
 
 Plans:
 - [ ] 02-01-PLAN.md -- ICS sync adapter: ical.js parsing, RRULE expansion, timezone handling, SyncManager wiring
-- [ ] 02-02-PLAN.md -- EventStore date range query and month overflow mode setting
+- [x] 02-02-PLAN.md -- EventStore date range query and month overflow mode setting
 - [ ] 02-03-PLAN.md -- Month view event bar rendering with overflow handling
 - [ ] 02-04-PLAN.md -- Week/day view event block rendering with overlap detection and current time indicator
 - [ ] 02-05-PLAN.md -- Event detail modal, keyboard navigation, sync-to-render wiring, visual checkpoint

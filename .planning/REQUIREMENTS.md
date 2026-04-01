@@ -9,7 +9,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Calendar Views
 
-- [ ] **VIEW-01**: User can see a month view with event dots/snippets on each day
+- [x] **VIEW-01**: User can see a month view with event dots/snippets on each day
 - [ ] **VIEW-02**: User can see a week view with hourly grid and event blocks
 - [ ] **VIEW-03**: User can see a day view with detailed hourly timeline
 - [ ] **VIEW-04**: User can switch between month, week, and day views
@@ -80,7 +80,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| VIEW-01 | Phase 2 | Pending |
+| VIEW-01 | Phase 2 | Complete |
 | VIEW-02 | Phase 2 | Pending |
 | VIEW-03 | Phase 2 | Pending |
 | VIEW-04 | Phase 2 | Pending |
