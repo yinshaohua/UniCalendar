@@ -87,7 +87,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | VIEW-05 | Phase 2 | Pending |
 | VIEW-06 | Phase 2 | Pending |
 | SYNC-01 | Phase 4 | Pending |
-| SYNC-02 | Phase 3 | Pending |
+| SYNC-02 | Phase 3 | Complete |
 | SYNC-03 | Phase 2 | Pending |
 | SYNC-04 | Phase 4 | Pending |
 | EVNT-01 | Phase 2 | Pending |
