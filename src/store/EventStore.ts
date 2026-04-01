@@ -1,4 +1,4 @@
-import { CalendarEvent, EventCache, DEFAULT_CACHE } from '../models/types';
+import { CalendarEvent, CalendarSource, EventCache, DEFAULT_CACHE, SOURCE_COLORS } from '../models/types';
 
 function computeCacheWindow(): { start: string; end: string } {
   const now = new Date();
@@ -50,6 +50,20 @@ export class EventStore {
       const eventEnd = event.end.slice(0, 10);
       return eventStart <= dateStr && eventEnd >= dateStr;
     });
+  }
+
+  getEventsForDateRange(startDate: string, endDate: string): CalendarEvent[] {
+    return this.events.filter(event => {
+      const eventStart = event.start.slice(0, 10);
+      const eventEnd = event.end.slice(0, 10);
+      // Event overlaps range if it starts before range ends AND ends after range starts
+      return eventStart <= endDate && eventEnd >= startDate;
+    });
+  }
+
+  static getSourceColor(sourceId: string, sources: CalendarSource[]): string {
+    const source = sources.find(s => s.id === sourceId);
+    return source?.color ?? SOURCE_COLORS[0]!;
   }
 
   replaceEvents(sourceId: string, newEvents: CalendarEvent[]): void {
