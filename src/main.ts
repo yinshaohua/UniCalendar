@@ -83,10 +83,12 @@ export default class UniCalendarPlugin extends Plugin {
   async saveSettings(): Promise<void> {
     await this.savePluginData();
     this.registerSyncInterval();
-    // Update all open calendar views' empty state
+    // Update all open calendar views
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
-        (leaf.view as CalendarView).updateEmptyState(this.settings.sources.length > 0);
+        const view = leaf.view as CalendarView;
+        view.updateEmptyState(this.settings.sources.length > 0);
+        view.rerender();
       }
     });
   }
@@ -98,11 +100,12 @@ export default class UniCalendarPlugin extends Plugin {
   }
 
   private refreshCalendarViews(): void {
-    // Notify open calendar views to update after sync
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
+        const view = leaf.view as CalendarView;
         const state = this.syncManager.getState();
-        (leaf.view as CalendarView).updateSyncStatus(state, this.settings.sources.length);
+        view.updateSyncStatus(state, this.settings.sources.length);
+        view.rerender();
       }
     });
   }

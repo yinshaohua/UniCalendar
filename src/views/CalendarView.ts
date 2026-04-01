@@ -594,6 +594,9 @@ export class CalendarView extends ItemView {
 
     // === Content ===
     this.contentContainerEl = container.createDiv({ cls: 'uni-calendar-content' });
+    this.contentContainerEl.setAttribute('tabindex', '0');
+    this.contentContainerEl.style.outline = 'none';
+    this.contentContainerEl.addEventListener('keydown', (e: KeyboardEvent) => this.handleKeydown(e));
     this.renderCurrentView();
   }
 
@@ -728,6 +731,36 @@ export class CalendarView extends ItemView {
     } else {
       this.calendarGridEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-day-grid-new' });
       this.renderDayGrid(this.calendarGridEl);
+    }
+    this.contentContainerEl.focus();
+  }
+
+  private handleKeydown(e: KeyboardEvent): void {
+    switch (e.key) {
+      case 'ArrowLeft':
+        e.preventDefault();
+        this.navigatePrev();
+        break;
+      case 'ArrowRight':
+        e.preventDefault();
+        this.navigateNext();
+        break;
+      case 't':
+        e.preventDefault();
+        this.navigateToday();
+        break;
+      case '1':
+        e.preventDefault();
+        this.switchViewMode('month');
+        break;
+      case '2':
+        e.preventDefault();
+        this.switchViewMode('week');
+        break;
+      case '3':
+        e.preventDefault();
+        this.switchViewMode('day');
+        break;
     }
   }
 
