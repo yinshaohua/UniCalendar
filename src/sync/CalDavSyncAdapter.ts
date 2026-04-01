@@ -22,12 +22,60 @@ export class CalDavSyncAdapter {
     const authHeader = this.createBasicAuthHeader(username, password);
     const baseUrl = serverUrl.replace(/\/+$/, '');
 
+    // Strategy 1: Standard 3-step discovery
+    try {
+      return await this.standardDiscovery(baseUrl, username, authHeader);
+    } catch (err) {
+      console.log('[UniCalendar] Standard CalDAV discovery failed:', err instanceof Error ? err.message : err);
+    }
+
+    // Strategy 2: Try common CalDAV paths directly with PROPFIND Depth:1
+    const commonPaths = [
+      `/dav/${username}/`,
+      `/calendars/${username}/`,
+      `/caldav/${username}/`,
+      `/${username}/`,
+      `/dav/`,
+      `/calendars/`,
+    ];
+
+    for (const path of commonPaths) {
+      try {
+        const url = baseUrl + path;
+        console.log(`[UniCalendar] Trying CalDAV path: ${url}`);
+        const calendars = await this.listCalendars(url, authHeader, baseUrl);
+        if (calendars.length > 0) {
+          console.log(`[UniCalendar] Found ${calendars.length} calendars at ${url}`);
+          return calendars;
+        }
+      } catch {
+        // Try next path
+      }
+    }
+
+    // Strategy 3: Try PROPFIND on server root with Depth:1 to find any calendar collections
+    try {
+      console.log('[UniCalendar] Trying PROPFIND on server root with Depth:1');
+      const calendars = await this.listCalendars(baseUrl + '/', authHeader, baseUrl);
+      if (calendars.length > 0) return calendars;
+    } catch {
+      // Fall through
+    }
+
+    throw new Error('日历发现失败: 服务器不支持自动发现。请尝试手动输入日历路径。');
+  }
+
+  private async standardDiscovery(
+    baseUrl: string,
+    username: string,
+    authHeader: string,
+  ): Promise<DiscoveredCalendar[]> {
     // Step 1: Get principal URL
     let principalHref: string;
     try {
       principalHref = await this.getPrincipalUrl(baseUrl + '/.well-known/caldav/', authHeader);
     } catch {
-      // Fallback: try root directly (DingTalk may not support .well-known)
+      // Fallback: try root
       principalHref = await this.getPrincipalUrl(baseUrl + '/', authHeader);
     }
     const principalUrl = new URL(principalHref, baseUrl).href;
@@ -115,6 +163,7 @@ export class CalDavSyncAdapter {
   <D:prop><D:current-user-principal/></D:prop>
 </D:propfind>`;
 
+    console.log(`[UniCalendar] PROPFIND principal: ${url}`);
     const response = await requestUrl({
       url,
       method: 'PROPFIND',
@@ -125,6 +174,7 @@ export class CalDavSyncAdapter {
       },
       body,
     });
+    console.log(`[UniCalendar] PROPFIND principal response (${response.status}):`, response.text.substring(0, 500));
 
     const doc = new DOMParser().parseFromString(response.text, 'text/xml');
     const href = this.findElementByLocalName(doc, 'current-user-principal')
@@ -178,6 +228,7 @@ export class CalDavSyncAdapter {
   </D:prop>
 </D:propfind>`;
 
+    console.log(`[UniCalendar] PROPFIND list calendars: ${homeSetUrl}`);
     const response = await requestUrl({
       url: homeSetUrl,
       method: 'PROPFIND',
@@ -188,6 +239,7 @@ export class CalDavSyncAdapter {
       },
       body,
     });
+    console.log(`[UniCalendar] PROPFIND list response (${response.status}):`, response.text.substring(0, 500));
 
     return this.parseCalendarListXml(response.text, baseUrl);
   }
