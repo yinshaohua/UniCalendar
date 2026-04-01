@@ -1,22 +1,22 @@
 import { describe, it, expect } from 'vitest';
 import { SyncManager } from '../../src/sync/SyncManager';
+import { EventStore } from '../../src/store/EventStore';
 import { CalendarSource, SyncState } from '../../src/models/types';
 
 function makeSource(overrides: Partial<CalendarSource> = {}): CalendarSource {
   return {
     id: 'test-source',
     name: 'Test',
-    type: 'ics',
+    type: 'google', // Use non-ICS type for state tests (avoids network calls)
     color: '#FF6961',
     enabled: true,
-    ics: { feedUrl: 'https://example.com/feed.ics' },
     ...overrides,
   };
 }
 
 describe('SyncManager', () => {
   it('initial state is idle with null lastSyncTime', () => {
-    const manager = new SyncManager(() => {});
+    const manager = new SyncManager(() => {}, new EventStore());
     const state = manager.getState();
 
     expect(state.status).toBe('idle');
@@ -27,7 +27,7 @@ describe('SyncManager', () => {
 
   it('syncAll transitions to syncing then idle', async () => {
     const states: SyncState[] = [];
-    const manager = new SyncManager((s) => states.push({ ...s }));
+    const manager = new SyncManager((s) => states.push({ ...s }), new EventStore());
 
     await manager.syncAll([makeSource()]);
 
@@ -41,7 +41,7 @@ describe('SyncManager', () => {
 
   it('syncAll with empty sources is a no-op', async () => {
     const states: SyncState[] = [];
-    const manager = new SyncManager((s) => states.push({ ...s }));
+    const manager = new SyncManager((s) => states.push({ ...s }), new EventStore());
 
     await manager.syncAll([]);
 
@@ -51,7 +51,7 @@ describe('SyncManager', () => {
 
   it('state change callback fires on transitions', async () => {
     let callCount = 0;
-    const manager = new SyncManager(() => { callCount++; });
+    const manager = new SyncManager(() => { callCount++; }, new EventStore());
 
     await manager.syncAll([makeSource()]);
 

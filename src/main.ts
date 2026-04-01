@@ -15,7 +15,7 @@ import { UniCalendarSettingsTab } from './settings/SettingsTab';
 export default class UniCalendarPlugin extends Plugin {
   settings: UniCalendarSettings = DEFAULT_SETTINGS;
   eventStore: EventStore = new EventStore();
-  syncManager: SyncManager = new SyncManager(() => { /* replaced in onload */ });
+  syncManager: SyncManager = new SyncManager(() => { /* replaced in onload */ }, this.eventStore);
   private eventCache: EventCache = DEFAULT_CACHE;
   private syncIntervalId: number | null = null;
 
@@ -25,7 +25,7 @@ export default class UniCalendarPlugin extends Plugin {
     this.eventStore = new EventStore();
     this.eventStore.load(this.eventCache);
 
-    this.syncManager = new SyncManager((state) => this.onSyncStateChange(state));
+    this.syncManager = new SyncManager((state) => this.onSyncStateChange(state), this.eventStore);
 
     this.registerView(VIEW_TYPE_CALENDAR, (leaf) => new CalendarView(leaf, this));
 
@@ -94,6 +94,17 @@ export default class UniCalendarPlugin extends Plugin {
   async triggerSync(): Promise<void> {
     await this.syncManager.syncAll(this.settings.sources);
     await this.savePluginData();
+    this.refreshCalendarViews();
+  }
+
+  private refreshCalendarViews(): void {
+    // Notify open calendar views to update after sync
+    this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
+      if (leaf.view instanceof CalendarView) {
+        const state = this.syncManager.getState();
+        (leaf.view as CalendarView).updateSyncStatus(state, this.settings.sources.length);
+      }
+    });
   }
 
   openSettings(): void {
