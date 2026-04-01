@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { EventStore } from '../../src/store/EventStore';
-import { CalendarEvent, EventCache } from '../../src/models/types';
+import { CalendarEvent, EventCache, CalendarSource, SOURCE_COLORS } from '../../src/models/types';
 
 function makeEvent(overrides: Partial<CalendarEvent> = {}): CalendarEvent {
   return {
@@ -71,6 +71,94 @@ describe('EventStore', () => {
     const result = store.getEventsForDate('2026-03-15');
     expect(result).toHaveLength(2);
     expect(result.map(e => e.id).sort()).toEqual(['e2', 'e3']);
+  });
+
+  describe('getEventsForDateRange', () => {
+    it('returns events whose start or end falls within range', () => {
+      const store = new EventStore();
+      store.load({
+        events: [
+          makeEvent({ id: 'e1', start: '2026-04-03T09:00:00Z', end: '2026-04-03T17:00:00Z' }),
+          makeEvent({ id: 'e2', start: '2026-04-05T09:00:00Z', end: '2026-04-05T17:00:00Z' }),
+        ],
+        lastSyncTime: null,
+        cacheWindowStart: '',
+        cacheWindowEnd: '',
+      });
+
+      const result = store.getEventsForDateRange('2026-04-01', '2026-04-07');
+      expect(result).toHaveLength(2);
+      expect(result.map(e => e.id).sort()).toEqual(['e1', 'e2']);
+    });
+
+    it('excludes events entirely outside the range', () => {
+      const store = new EventStore();
+      store.load({
+        events: [
+          makeEvent({ id: 'e1', start: '2026-03-20T09:00:00Z', end: '2026-03-20T17:00:00Z' }),
+          makeEvent({ id: 'e2', start: '2026-04-10T09:00:00Z', end: '2026-04-10T17:00:00Z' }),
+          makeEvent({ id: 'e3', start: '2026-04-03T09:00:00Z', end: '2026-04-03T17:00:00Z' }),
+        ],
+        lastSyncTime: null,
+        cacheWindowStart: '',
+        cacheWindowEnd: '',
+      });
+
+      const result = store.getEventsForDateRange('2026-04-01', '2026-04-07');
+      expect(result).toHaveLength(1);
+      expect(result[0]!.id).toBe('e3');
+    });
+
+    it('includes multi-day events that span into the range (starts before, ends within)', () => {
+      const store = new EventStore();
+      store.load({
+        events: [
+          makeEvent({ id: 'e1', start: '2026-03-28T09:00:00Z', end: '2026-04-02T17:00:00Z' }),
+        ],
+        lastSyncTime: null,
+        cacheWindowStart: '',
+        cacheWindowEnd: '',
+      });
+
+      const result = store.getEventsForDateRange('2026-04-01', '2026-04-07');
+      expect(result).toHaveLength(1);
+      expect(result[0]!.id).toBe('e1');
+    });
+
+    it('includes events that start within range but end after', () => {
+      const store = new EventStore();
+      store.load({
+        events: [
+          makeEvent({ id: 'e1', start: '2026-04-06T09:00:00Z', end: '2026-04-12T17:00:00Z' }),
+        ],
+        lastSyncTime: null,
+        cacheWindowStart: '',
+        cacheWindowEnd: '',
+      });
+
+      const result = store.getEventsForDateRange('2026-04-01', '2026-04-07');
+      expect(result).toHaveLength(1);
+      expect(result[0]!.id).toBe('e1');
+    });
+
+    it('returns empty array when store is empty', () => {
+      const store = new EventStore();
+      const result = store.getEventsForDateRange('2026-04-01', '2026-04-07');
+      expect(result).toHaveLength(0);
+    });
+  });
+
+  describe('getSourceColor', () => {
+    it('returns color for a matching sourceId', () => {
+      const sources: CalendarSource[] = [
+        { id: 'src1', name: 'Test', type: 'ics', color: '#FF0000', enabled: true },
+      ];
+      expect(EventStore.getSourceColor('src1', sources)).toBe('#FF0000');
+    });
+
+    it('returns first SOURCE_COLORS entry when sourceId not found', () => {
+      expect(EventStore.getSourceColor('missing', [])).toBe(SOURCE_COLORS[0]!);
+    });
   });
 
   it('clear resets to empty state', () => {
