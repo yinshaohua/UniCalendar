@@ -876,7 +876,7 @@ export class CalendarView extends ItemView {
           const bar = eventsEl.createDiv({ cls: 'uni-calendar-event-bar' });
           const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
           bar.style.borderLeft = `3px solid ${sourceColor}`;
-          bar.style.background = `color-mix(in srgb, ${sourceColor} 12%, var(--background-secondary))`;
+          bar.style.background = `color-mix(in srgb, ${sourceColor} 25%, var(--background-secondary))`;
           if (!event.allDay) {
             const timeStr = new Date(event.start).toLocaleTimeString('zh-CN', {
               hour: '2-digit',
@@ -1111,16 +1111,16 @@ export class CalendarView extends ItemView {
 
     const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
     block.style.borderLeft = `3px solid ${sourceColor}`;
-    block.style.background = `color-mix(in srgb, ${sourceColor} 18%, var(--background-primary))`;
+    block.style.background = `color-mix(in srgb, ${sourceColor} 30%, var(--background-primary))`;
 
     block.createDiv({ cls: 'uni-calendar-event-block-title', text: event.title });
     block.createDiv({ cls: 'uni-calendar-event-block-time', text: this.formatTimeRange(event.start, event.end) });
 
     block.addEventListener('mouseenter', () => {
-      block.style.background = `color-mix(in srgb, ${sourceColor} 28%, var(--background-primary))`;
+      block.style.background = `color-mix(in srgb, ${sourceColor} 40%, var(--background-primary))`;
     });
     block.addEventListener('mouseleave', () => {
-      block.style.background = `color-mix(in srgb, ${sourceColor} 18%, var(--background-primary))`;
+      block.style.background = `color-mix(in srgb, ${sourceColor} 30%, var(--background-primary))`;
     });
     block.addEventListener('click', (e) => {
       e.stopPropagation();
