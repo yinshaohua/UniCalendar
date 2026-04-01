@@ -161,6 +161,18 @@ describe('EventStore', () => {
     });
   });
 
+  it('preserves uid field on stored events', () => {
+    const store = new EventStore();
+    const events: CalendarEvent[] = [{
+      id: 's1::uid1', sourceId: 's1', uid: 'unique-ical-uid-123',
+      title: 'Test', start: '2026-04-01T10:00:00.000Z', end: '2026-04-01T11:00:00.000Z',
+      allDay: false,
+    }];
+    store.replaceEvents('s1', events);
+    const retrieved = store.getEvents();
+    expect(retrieved[0]?.uid).toBe('unique-ical-uid-123');
+  });
+
   it('clear resets to empty state', () => {
     const store = new EventStore();
     store.load({

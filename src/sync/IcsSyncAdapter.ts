@@ -149,6 +149,7 @@ export class IcsSyncAdapter {
     return {
       id,
       sourceId,
+      uid,
       title: icalEvent.summary || '',
       start,
       end,
