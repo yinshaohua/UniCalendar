@@ -17,7 +17,7 @@ export interface CalendarSource {
   color: string;                 // Hex color
   enabled: boolean;
   google?: { clientId: string; clientSecret: string; };
-  caldav?: { serverUrl: string; username: string; password: string; calendarPath?: string; };
+  caldav?: { serverUrl: string; username: string; password: string; calendarPath?: string; calendarDisplayName?: string; };
   ics?: { feedUrl: string; };
 }
 
