@@ -40,6 +40,10 @@ export class SyncManager {
     const rangeEnd = new Date(now);
     rangeEnd.setMonth(rangeEnd.getMonth() + 3);
 
+    // Clean up orphaned events from deleted sources
+    const sourceIds = new Set(sources.map(s => s.id));
+    this.eventStore.removeOrphanedEvents(sourceIds);
+
     const enabledSources = sources.filter(s => s.enabled);
     const errors: string[] = [];
 

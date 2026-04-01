@@ -74,6 +74,10 @@ export class EventStore {
     this.cacheWindowEnd = window.end;
   }
 
+  removeOrphanedEvents(validSourceIds: Set<string>): void {
+    this.events = this.events.filter(e => validSourceIds.has(e.sourceId));
+  }
+
   clear(): void {
     this.events = [];
     this.lastSyncTime = DEFAULT_CACHE.lastSyncTime;

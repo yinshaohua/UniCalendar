@@ -876,6 +876,7 @@ export class CalendarView extends ItemView {
           const bar = eventsEl.createDiv({ cls: 'uni-calendar-event-bar' });
           const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
           bar.style.borderLeft = `3px solid ${sourceColor}`;
+          bar.style.background = `color-mix(in srgb, ${sourceColor} 12%, var(--background-secondary))`;
           if (!event.allDay) {
             const timeStr = new Date(event.start).toLocaleTimeString('zh-CN', {
               hour: '2-digit',
