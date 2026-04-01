@@ -1,5 +1,7 @@
 import { App, Modal, Notice, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { CalendarSource, UniCalendarSettings, SOURCE_COLORS, getNextColor } from '../models/types';
+import { CalDavSyncAdapter, DiscoveredCalendar } from '../sync/CalDavSyncAdapter';
+import { IcsSyncAdapter } from '../sync/IcsSyncAdapter';
 
 /**
  * Minimal plugin interface for SettingsTab consumption.
@@ -283,7 +285,7 @@ class AddSourceModal extends Modal {
         .setName('服务器地址')
         .setDesc('CalDAV 服务器 URL')
         .addText(text => text
-          .setPlaceholder('https://caldav.example.com')
+          .setPlaceholder('https://calendar.dingtalk.com')
           .onChange(value => { serverUrl = value; }));
 
       new Setting(contentEl)
@@ -300,9 +302,44 @@ class AddSourceModal extends Modal {
           text.inputEl.type = 'password';
         });
 
+      // Calendar discovery
+      const discoveryContainer = contentEl.createDiv();
+      new Setting(discoveryContainer)
+        .setName('自动发现日历')
+        .setDesc('输入服务器地址和凭证后，点击发现可用日历')
+        .addButton(btn => btn
+          .setButtonText('发现日历')
+          .onClick(async () => {
+            if (!serverUrl.trim() || !username.trim() || !password.trim()) {
+              new Notice('请先填写服务器地址、用户名和密码');
+              return;
+            }
+            btn.setDisabled(true);
+            btn.setButtonText('发现中...');
+            try {
+              const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+              const calendars = await adapter.discoverCalendars(
+                serverUrl.trim(), username.trim(), password,
+              );
+              if (calendars.length === 0) {
+                new Notice('未发现任何日历');
+              } else {
+                new Notice(`发现 ${calendars.length} 个日历`);
+                this.renderCalendarSelection(discoveryContainer, calendars, (cal) => {
+                  calendarPath = cal.href;
+                });
+              }
+            } catch (err) {
+              new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
+            } finally {
+              btn.setDisabled(false);
+              btn.setButtonText('发现日历');
+            }
+          }));
+
       new Setting(contentEl)
         .setName('日历路径')
-        .setDesc('可选 — 留空则自动发现')
+        .setDesc('可选 — 可手动输入，或通过上方发现按钮自动填充')
         .addText(text => text
           .setPlaceholder('/calendars/default/')
           .onChange(value => { calendarPath = value; }));
@@ -370,6 +407,48 @@ class AddSourceModal extends Modal {
       this.close();
       this.onDone();
     });
+  }
+
+  private renderCalendarSelection(
+    container: HTMLElement,
+    calendars: DiscoveredCalendar[],
+    onSelect: (cal: DiscoveredCalendar) => void,
+  ): void {
+    const existing = container.querySelector('.uni-calendar-discovery-list');
+    if (existing) existing.remove();
+
+    const listEl = container.createDiv({ cls: 'uni-calendar-discovery-list' });
+    listEl.createEl('p', {
+      text: `发现 ${calendars.length} 个日历:`,
+      attr: { style: 'font-weight: 600; margin-top: var(--size-4-2);' },
+    });
+
+    let selectedHref = '';
+    for (const cal of calendars) {
+      const item = listEl.createDiv({
+        attr: { style: 'display: flex; align-items: center; padding: 6px 8px; cursor: pointer; border-radius: var(--radius-s); margin-bottom: 4px;' },
+      });
+      item.createEl('span', { text: cal.displayName || cal.href });
+      item.addEventListener('click', () => {
+        selectedHref = cal.href;
+        onSelect(cal);
+        listEl.querySelectorAll('div').forEach(el => {
+          (el as HTMLElement).style.background = '';
+        });
+        item.style.background = 'var(--interactive-accent)';
+        item.style.color = 'var(--text-on-accent)';
+        new Notice(`已选择: ${cal.displayName || cal.href}`);
+      });
+      item.addEventListener('mouseenter', () => {
+        if (selectedHref !== cal.href) item.style.background = 'var(--background-modifier-hover)';
+      });
+      item.addEventListener('mouseleave', () => {
+        if (selectedHref !== cal.href) {
+          item.style.background = '';
+          item.style.color = '';
+        }
+      });
+    }
   }
 }
 
@@ -475,9 +554,45 @@ class EditSourceModal extends Modal {
           text.inputEl.type = 'password';
         });
 
+      // Calendar discovery (edit mode)
+      const editDiscoveryContainer = contentEl.createDiv();
+      new Setting(editDiscoveryContainer)
+        .setName('自动发现日历')
+        .setDesc('点击发现此服务器上的可用日历')
+        .addButton(btn => btn
+          .setButtonText('发现日历')
+          .onClick(async () => {
+            const sv = serverUrl.trim() || source.caldav?.serverUrl || '';
+            const un = username.trim() || source.caldav?.username || '';
+            const pw = password || source.caldav?.password || '';
+            if (!sv || !un || !pw) {
+              new Notice('请先填写服务器地址、用户名和密码');
+              return;
+            }
+            btn.setDisabled(true);
+            btn.setButtonText('发现中...');
+            try {
+              const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+              const calendars = await adapter.discoverCalendars(sv, un, pw);
+              if (calendars.length === 0) {
+                new Notice('未发现任何日历');
+              } else {
+                new Notice(`发现 ${calendars.length} 个日历`);
+                this.renderCalendarSelection(editDiscoveryContainer, calendars, (cal) => {
+                  calendarPath = cal.href;
+                });
+              }
+            } catch (err) {
+              new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
+            } finally {
+              btn.setDisabled(false);
+              btn.setButtonText('发现日历');
+            }
+          }));
+
       new Setting(contentEl)
         .setName('日历路径')
-        .setDesc('可选 — 留空则自动发现')
+        .setDesc('可选 — 可手动输入，或通过上方发现按钮自动填充')
         .addText(text => text
           .setValue(calendarPath)
           .onChange(value => { calendarPath = value; }));
@@ -539,6 +654,49 @@ class EditSourceModal extends Modal {
       this.close();
       this.onDone();
     });
+  }
+
+  private renderCalendarSelection(
+    container: HTMLElement,
+    calendars: DiscoveredCalendar[],
+    onSelect: (cal: DiscoveredCalendar) => void,
+  ): void {
+    const existing = container.querySelector('.uni-calendar-discovery-list');
+    if (existing) existing.remove();
+
+    const listEl = container.createDiv({ cls: 'uni-calendar-discovery-list' });
+    listEl.createEl('p', {
+      text: `发现 ${calendars.length} 个日历:`,
+      attr: { style: 'font-weight: 600; margin-top: var(--size-4-2);' },
+    });
+
+    let selectedHref = '';
+    for (const cal of calendars) {
+      const item = listEl.createDiv({
+        attr: { style: 'display: flex; align-items: center; padding: 6px 8px; cursor: pointer; border-radius: var(--radius-s); margin-bottom: 4px;' },
+      });
+      item.createEl('span', { text: cal.displayName || cal.href });
+      item.addEventListener('click', () => {
+        selectedHref = cal.href;
+        onSelect(cal);
+        listEl.querySelectorAll('div').forEach(el => {
+          (el as HTMLElement).style.background = '';
+          (el as HTMLElement).style.color = '';
+        });
+        item.style.background = 'var(--interactive-accent)';
+        item.style.color = 'var(--text-on-accent)';
+        new Notice(`已选择: ${cal.displayName || cal.href}`);
+      });
+      item.addEventListener('mouseenter', () => {
+        if (selectedHref !== cal.href) item.style.background = 'var(--background-modifier-hover)';
+      });
+      item.addEventListener('mouseleave', () => {
+        if (selectedHref !== cal.href) {
+          item.style.background = '';
+          item.style.color = '';
+        }
+      });
+    }
   }
 
   onClose(): void {
