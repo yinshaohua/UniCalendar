@@ -345,6 +345,143 @@ const CALENDAR_CSS = `
   text-decoration: underline;
 }
 
+/* === Event Blocks (Week/Day View) === */
+.uni-calendar-event-block {
+  position: absolute;
+  left: 0;
+  right: 0;
+  min-height: 20px;
+  border-radius: 4px;
+  padding: 4px 8px;
+  cursor: pointer;
+  overflow: hidden;
+  z-index: 2;
+  box-sizing: border-box;
+}
+.uni-calendar-event-block:hover {
+  z-index: 3;
+}
+.uni-calendar-event-block-title {
+  font-size: var(--font-ui-small);
+  font-weight: 600;
+  color: var(--text-normal);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.uni-calendar-event-block-time {
+  font-size: var(--font-ui-smaller);
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+/* === Current Time Indicator === */
+.uni-calendar-now-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 2px solid var(--text-error);
+  z-index: 5;
+  pointer-events: none;
+}
+.uni-calendar-now-dot {
+  position: absolute;
+  left: -3px;
+  top: -4px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--text-error);
+}
+
+/* === Restructured Week Grid === */
+.uni-calendar-week-grid-new {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: auto;
+}
+.uni-calendar-week-header-row {
+  display: flex;
+  flex-shrink: 0;
+}
+.uni-calendar-week-header-row .uni-calendar-week-header-corner {
+  flex-shrink: 0;
+  width: 50px;
+}
+.uni-calendar-week-header-row .uni-calendar-week-day-header {
+  flex: 1;
+}
+.uni-calendar-week-body {
+  display: flex;
+  flex: 1;
+}
+.uni-calendar-hour-labels {
+  flex-shrink: 0;
+  width: 50px;
+  background: var(--background-secondary);
+  border-right: 1px solid var(--background-modifier-border);
+}
+.uni-calendar-hour-label-cell {
+  height: 40px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: right;
+  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  box-sizing: border-box;
+}
+.uni-calendar-day-column {
+  flex: 1;
+  position: relative;
+  border-right: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+}
+.uni-calendar-day-column:last-child {
+  border-right: none;
+}
+.uni-calendar-day-column.is-today {
+  background: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-primary));
+}
+.uni-calendar-hour-slot {
+  height: 40px;
+  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  box-sizing: border-box;
+}
+
+/* === Restructured Day Grid === */
+.uni-calendar-day-grid-new {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  overflow: auto;
+}
+.uni-calendar-day-body {
+  display: flex;
+  flex: 1;
+}
+.uni-calendar-day-hour-label-cell {
+  height: 48px;
+  padding: 2px 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+  text-align: right;
+  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  box-sizing: border-box;
+}
+.uni-calendar-day-single-column {
+  flex: 1;
+  position: relative;
+}
+.uni-calendar-day-hour-slot {
+  height: 48px;
+  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  box-sizing: border-box;
+}
+
 `;
 
 const DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
@@ -363,6 +500,7 @@ export class CalendarView extends ItemView {
   private calendarGridEl: HTMLElement | null = null;
   private monthLabelEl: HTMLElement | null = null;
   private contentContainerEl: HTMLElement | null = null;
+  private nowLineInterval: number | null = null;
 
   private displayYear: number;
   private displayMonth: number;
@@ -499,6 +637,10 @@ export class CalendarView extends ItemView {
   }
 
   async onClose(): Promise<void> {
+    if (this.nowLineInterval !== null) {
+      window.clearInterval(this.nowLineInterval);
+      this.nowLineInterval = null;
+    }
     this.syncStatusEl = null;
     this.calendarGridEl = null;
     this.monthLabelEl = null;
@@ -570,15 +712,20 @@ export class CalendarView extends ItemView {
   private renderCurrentView(): void {
     if (!this.contentContainerEl) return;
     this.contentContainerEl.empty();
+    // Clear previous now-line interval
+    if (this.nowLineInterval !== null) {
+      window.clearInterval(this.nowLineInterval);
+      this.nowLineInterval = null;
+    }
 
     if (this.currentViewMode === 'month') {
       this.calendarGridEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-grid' });
       this.renderMonthGrid(this.calendarGridEl);
     } else if (this.currentViewMode === 'week') {
-      this.calendarGridEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-week-grid' });
+      this.calendarGridEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-week-grid-new' });
       this.renderWeekGrid(this.calendarGridEl);
     } else {
-      this.calendarGridEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-day-grid' });
+      this.calendarGridEl = this.contentContainerEl.createDiv({ cls: 'uni-calendar-day-grid-new' });
       this.renderDayGrid(this.calendarGridEl);
     }
   }
@@ -728,48 +875,244 @@ export class CalendarView extends ItemView {
 
   // === Week View ===
   private renderWeekGrid(gridEl: HTMLElement): void {
+    const HOUR_HEIGHT = 40;
     const weekStart = this.getWeekStart(new Date(this.displayYear, this.displayMonth, this.displayDay));
     const todayStr = this.getTodayStr();
 
+    // Collect all week events to compute dynamic hour range
+    const allWeekEvents: CalendarEvent[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      const dateStr = this.dateToStr(d.getFullYear(), d.getMonth(), d.getDate());
+      const dayEvents = this.plugin.eventStore.getEventsForDate(dateStr).filter((e: CalendarEvent) => !e.allDay);
+      allWeekEvents.push(...dayEvents);
+    }
+    const { start: firstHour, end: lastHour } = this.getHourRange(allWeekEvents);
+
     // Header row: corner + 7 day headers
-    gridEl.createDiv({ cls: 'uni-calendar-week-header-corner' });
+    const headerRow = gridEl.createDiv({ cls: 'uni-calendar-week-header-row' });
+    headerRow.createDiv({ cls: 'uni-calendar-week-header-corner' });
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(d.getDate() + i);
       const dateStr = this.dateToStr(d.getFullYear(), d.getMonth(), d.getDate());
       const dayName = DAY_FULL_NAMES[d.getDay()] ?? '';
       const label = dayName + ' ' + d.getDate() + '日';
-      const header = gridEl.createDiv({ cls: 'uni-calendar-week-day-header', text: label });
+      const header = headerRow.createDiv({ cls: 'uni-calendar-week-day-header', text: label });
       if (dateStr === todayStr) header.addClass('is-today');
     }
 
-    // Hour rows: 8:00 - 22:00
-    for (let hour = 8; hour <= 22; hour++) {
-      const label = String(hour).padStart(2, '0') + ':00';
-      gridEl.createDiv({ cls: 'uni-calendar-week-hour-label', text: label });
+    // Body: hour labels + 7 day columns
+    const body = gridEl.createDiv({ cls: 'uni-calendar-week-body' });
 
-      for (let i = 0; i < 7; i++) {
-        const d = new Date(weekStart);
-        d.setDate(d.getDate() + i);
-        const dateStr = this.dateToStr(d.getFullYear(), d.getMonth(), d.getDate());
-        const cell = gridEl.createDiv({ cls: 'uni-calendar-week-cell' });
-        if (dateStr === todayStr) cell.addClass('is-today');
+    // Hour labels
+    const hourLabels = body.createDiv({ cls: 'uni-calendar-hour-labels' });
+    for (let hour = firstHour; hour <= lastHour; hour++) {
+      hourLabels.createDiv({
+        cls: 'uni-calendar-hour-label-cell',
+        text: String(hour).padStart(2, '0') + ':00',
+      });
+    }
+
+    // Day columns with events
+    let todayColumnEl: HTMLElement | null = null;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(weekStart);
+      d.setDate(d.getDate() + i);
+      const dateStr = this.dateToStr(d.getFullYear(), d.getMonth(), d.getDate());
+      const isToday = dateStr === todayStr;
+
+      const columnEl = body.createDiv({ cls: 'uni-calendar-day-column' });
+      if (isToday) {
+        columnEl.addClass('is-today');
+        todayColumnEl = columnEl;
       }
+
+      // Hour slot grid lines
+      for (let hour = firstHour; hour <= lastHour; hour++) {
+        columnEl.createDiv({ cls: 'uni-calendar-hour-slot' });
+      }
+
+      // Render event blocks
+      const dayEvents = this.plugin.eventStore.getEventsForDate(dateStr).filter((e: CalendarEvent) => !e.allDay);
+      const overlaps = this.detectOverlaps(dayEvents);
+      for (const { event, column, totalColumns } of overlaps) {
+        this.renderEventBlock(columnEl, event, column, totalColumns, firstHour, HOUR_HEIGHT);
+      }
+    }
+
+    // Current time indicator
+    if (todayColumnEl) {
+      this.addNowLine(todayColumnEl, firstHour, HOUR_HEIGHT);
     }
   }
 
   // === Day View ===
   private renderDayGrid(gridEl: HTMLElement): void {
+    const HOUR_HEIGHT = 48;
+    const firstHour = 0;
+    const lastHour = 23;
     const d = new Date(this.displayYear, this.displayMonth, this.displayDay);
     const dayName = DAY_FULL_NAMES[d.getDay()] ?? '';
     const headerText = (this.displayMonth + 1) + '月' + this.displayDay + '日 ' + dayName;
     gridEl.createDiv({ cls: 'uni-calendar-day-view-header', text: headerText });
 
-    for (let hour = 0; hour <= 23; hour++) {
-      const label = String(hour).padStart(2, '0') + ':00';
-      gridEl.createDiv({ cls: 'uni-calendar-day-hour-label', text: label });
-      gridEl.createDiv({ cls: 'uni-calendar-day-hour-cell' });
+    const body = gridEl.createDiv({ cls: 'uni-calendar-day-body' });
+
+    // Hour labels
+    const hourLabels = body.createDiv({ cls: 'uni-calendar-hour-labels' });
+    for (let hour = firstHour; hour <= lastHour; hour++) {
+      hourLabels.createDiv({
+        cls: 'uni-calendar-day-hour-label-cell',
+        text: String(hour).padStart(2, '0') + ':00',
+      });
     }
+
+    // Single day column
+    const columnEl = body.createDiv({ cls: 'uni-calendar-day-single-column' });
+
+    // Hour slot grid lines
+    for (let hour = firstHour; hour <= lastHour; hour++) {
+      columnEl.createDiv({ cls: 'uni-calendar-day-hour-slot' });
+    }
+
+    // Render event blocks
+    const dateStr = this.dateToStr(this.displayYear, this.displayMonth, this.displayDay);
+    const dayEvents = this.plugin.eventStore.getEventsForDate(dateStr).filter((e: CalendarEvent) => !e.allDay);
+    const overlaps = this.detectOverlaps(dayEvents);
+    for (const { event, column, totalColumns } of overlaps) {
+      this.renderEventBlock(columnEl, event, column, totalColumns, firstHour, HOUR_HEIGHT);
+    }
+
+    // Current time indicator (only if viewing today)
+    const todayStr = this.getTodayStr();
+    if (dateStr === todayStr) {
+      this.addNowLine(columnEl, firstHour, HOUR_HEIGHT);
+    }
+  }
+
+  // === Shared Helpers for Week/Day Views ===
+
+  private getHourRange(events: CalendarEvent[]): { start: number; end: number } {
+    let start = 7, end = 22;
+    for (const e of events) {
+      const eStart = new Date(e.start).getHours();
+      const eEnd = new Date(e.end).getHours() + (new Date(e.end).getMinutes() > 0 ? 1 : 0);
+      if (eStart < start) start = eStart;
+      if (eEnd > end) end = eEnd;
+    }
+    return { start, end };
+  }
+
+  private detectOverlaps(events: CalendarEvent[]): Array<{ event: CalendarEvent; column: number; totalColumns: number }> {
+    if (events.length === 0) return [];
+    const sorted = [...events].sort((a, b) => {
+      const cmp = a.start.localeCompare(b.start);
+      if (cmp !== 0) return cmp;
+      const aDur = new Date(a.end).getTime() - new Date(a.start).getTime();
+      const bDur = new Date(b.end).getTime() - new Date(b.start).getTime();
+      return bDur - aDur;
+    });
+
+    const columns: Array<{ end: number; events: CalendarEvent[] }> = [];
+    const assignments = new Map<string, { column: number }>();
+
+    for (const event of sorted) {
+      const startMs = new Date(event.start).getTime();
+      const endMs = new Date(event.end).getTime();
+      let placed = false;
+      for (let c = 0; c < columns.length && c < 4; c++) {
+        if (startMs >= columns[c]!.end) {
+          columns[c]!.end = endMs;
+          columns[c]!.events.push(event);
+          assignments.set(event.id, { column: c });
+          placed = true;
+          break;
+        }
+      }
+      if (!placed) {
+        const colIdx = Math.min(columns.length, 3);
+        if (colIdx === columns.length) {
+          columns.push({ end: endMs, events: [event] });
+        } else {
+          columns[colIdx]!.end = Math.max(columns[colIdx]!.end, endMs);
+          columns[colIdx]!.events.push(event);
+        }
+        assignments.set(event.id, { column: colIdx });
+      }
+    }
+
+    const totalColumns = columns.length;
+    return sorted.map(event => ({
+      event,
+      column: assignments.get(event.id)!.column,
+      totalColumns,
+    }));
+  }
+
+  private renderEventBlock(
+    columnEl: HTMLElement,
+    event: CalendarEvent,
+    column: number,
+    totalColumns: number,
+    firstHour: number,
+    hourHeight: number,
+  ): void {
+    const startDate = new Date(event.start);
+    const endDate = new Date(event.end);
+    const startMinutes = startDate.getHours() * 60 + startDate.getMinutes();
+    const endMinutes = endDate.getHours() * 60 + endDate.getMinutes();
+    const top = ((startMinutes / 60) - firstHour) * hourHeight;
+    const height = Math.max(20, ((endMinutes - startMinutes) / 60) * hourHeight);
+    const width = 100 / totalColumns;
+    const left = column * width;
+
+    const block = columnEl.createDiv({ cls: 'uni-calendar-event-block' });
+    block.style.top = `${top}px`;
+    block.style.height = `${height}px`;
+    block.style.width = `${width}%`;
+    block.style.left = `${left}%`;
+
+    const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
+    block.style.borderLeft = `3px solid ${sourceColor}`;
+    block.style.background = `color-mix(in srgb, ${sourceColor} 18%, var(--background-primary))`;
+
+    block.createDiv({ cls: 'uni-calendar-event-block-title', text: event.title });
+    block.createDiv({ cls: 'uni-calendar-event-block-time', text: this.formatTimeRange(event.start, event.end) });
+
+    block.addEventListener('mouseenter', () => {
+      block.style.background = `color-mix(in srgb, ${sourceColor} 28%, var(--background-primary))`;
+    });
+    block.addEventListener('mouseleave', () => {
+      block.style.background = `color-mix(in srgb, ${sourceColor} 18%, var(--background-primary))`;
+    });
+    block.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.showEventDetail(event);
+    });
+  }
+
+  private formatTimeRange(start: string, end: string): string {
+    const s = new Date(start);
+    const e = new Date(end);
+    const fmt = (d: Date) => d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false });
+    return `${fmt(s)}-${fmt(e)}`;
+  }
+
+  private addNowLine(columnEl: HTMLElement, firstHour: number, hourHeight: number): void {
+    const updatePosition = () => {
+      const now = new Date();
+      const nowMinutes = now.getHours() * 60 + now.getMinutes();
+      const top = ((nowMinutes / 60) - firstHour) * hourHeight;
+      nowLine.style.top = `${top}px`;
+    };
+
+    const nowLine = columnEl.createDiv({ cls: 'uni-calendar-now-line' });
+    nowLine.createDiv({ cls: 'uni-calendar-now-dot' });
+    updatePosition();
+
+    this.nowLineInterval = window.setInterval(updatePosition, 60000);
   }
 
   rerender(): void {
