@@ -71,7 +71,7 @@ Plans:
 Plans:
 - [x] 03-01-PLAN.md -- CalDavSyncAdapter: PROPFIND discovery, REPORT event fetch, XML parsing, SyncManager wiring
 - [x] 03-02-PLAN.md -- Settings UI calendar discovery: discover button, calendar selection, DingTalk verification
-- [ ] 03-03-PLAN.md -- CalDAV settings UI refinement: remove descriptions, picker modal, persist selected calendar name, 5-row month grid
+- [x] 03-03-PLAN.md -- CalDAV settings UI refinement: remove descriptions, picker modal, persist selected calendar name, 5-row month grid
 
 ### Phase 4: Google Calendar and Multi-Source Unification
 **Goal**: Users can connect Google Calendar via OAuth2 and see events from all three source types merged into one unified view
