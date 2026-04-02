@@ -188,6 +188,8 @@ const CALENDAR_CSS = `
 .uni-calendar-day {
   padding: 4px 6px;
   min-height: 70px;
+  min-width: 0;
+  overflow: hidden;
   background: var(--background-primary);
   color: var(--text-normal);
   font-size: var(--font-ui-small);
@@ -432,10 +434,15 @@ const CALENDAR_CSS = `
 }
 .uni-calendar-week-header-row .uni-calendar-week-day-header {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .uni-calendar-week-body {
   display: flex;
   flex: 1;
+  min-width: 0;
 }
 .uni-calendar-hour-labels {
   flex-shrink: 0;
@@ -454,6 +461,8 @@ const CALENDAR_CSS = `
 }
 .uni-calendar-day-column {
   flex: 1;
+  min-width: 0;
+  overflow: hidden;
   position: relative;
   border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
 }
@@ -834,7 +843,7 @@ export class CalendarView extends ItemView {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const daysInPrevMonth = new Date(year, month, 0).getDate();
     const todayStr = this.getTodayStr();
-    const totalCells = 35;
+    const totalCells = (startDayOfWeek + daysInMonth > 35) ? 42 : 35;
 
     for (let i = 0; i < totalCells; i++) {
       const dayNum = i - startDayOfWeek + 1;

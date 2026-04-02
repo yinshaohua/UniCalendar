@@ -170,8 +170,8 @@ export class IcsSyncAdapter {
 
   // Subtract one day from an ISO date string (e.g. "2026-04-02" -> "2026-04-01")
   private prevDay(isoDate: string): string {
-    const d = new Date(isoDate + 'T00:00:00');
-    d.setDate(d.getDate() - 1);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const d = new Date(isoDate + 'T12:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 1);
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
   }
 }

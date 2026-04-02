@@ -170,6 +170,7 @@ export class CalDavSyncAdapter {
     }
 
     const icsTexts = this.parseEventReportXml(responseText);
+    console.log(`[UniCalendar] CalDAV REPORT returned ${icsTexts.length} events from ${calendarPath}`);
     const events: CalendarEvent[] = [];
     for (const icsText of icsTexts) {
       try {
