@@ -23,6 +23,8 @@ const CALENDAR_CSS = `
   align-items: center;
   justify-content: space-between;
   margin-bottom: var(--size-4-3);
+  padding-bottom: var(--size-4-3);
+  box-shadow: 0 1px 0 var(--background-modifier-border);
   flex-shrink: 0;
 }
 .uni-calendar-toolbar-left {
@@ -57,6 +59,7 @@ const CALENDAR_CSS = `
   display: flex;
   align-items: center;
   justify-content: center;
+  transition: all 0.15s ease;
 }
 .uni-calendar-nav-btn:hover {
   color: var(--text-normal);
@@ -71,6 +74,7 @@ const CALENDAR_CSS = `
   border-radius: var(--radius-s);
   font-size: var(--font-ui-smaller);
   font-weight: 500;
+  transition: all 0.15s ease;
 }
 .uni-calendar-today-btn:hover {
   background: var(--background-modifier-hover);
@@ -128,6 +132,7 @@ const CALENDAR_CSS = `
   border-radius: var(--radius-s);
   display: flex;
   align-items: center;
+  transition: all 0.15s ease;
 }
 .uni-calendar-sync-btn:hover {
   color: var(--text-normal);
@@ -142,6 +147,7 @@ const CALENDAR_CSS = `
   border-radius: var(--radius-s);
   display: flex;
   align-items: center;
+  transition: all 0.15s ease;
 }
 .uni-calendar-settings-btn:hover {
   color: var(--text-normal);
@@ -182,8 +188,8 @@ const CALENDAR_CSS = `
   color: var(--text-normal);
   font-size: var(--font-ui-small);
   font-weight: 500;
-  border-right: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
 }
 .uni-calendar-day:nth-child(7n) {
   border-right: none;
@@ -194,6 +200,7 @@ const CALENDAR_CSS = `
 }
 .uni-calendar-day-today {
   background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
+  transition: background 0.3s ease;
 }
 .uni-calendar-day-today .uni-calendar-day-number {
   background: var(--interactive-accent);
@@ -245,20 +252,21 @@ const CALENDAR_CSS = `
   text-align: right;
   background: var(--background-secondary);
   border-right: 1px solid var(--background-modifier-border);
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
   min-height: 40px;
 }
 .uni-calendar-week-cell {
   min-height: 40px;
   background: var(--background-primary);
-  border-right: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
 }
 .uni-calendar-week-cell:nth-child(8n) {
   border-right: none;
 }
 .uni-calendar-week-cell.is-today {
   background: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-primary));
+  transition: background 0.3s ease;
 }
 
 /* === Day grid === */
@@ -286,13 +294,13 @@ const CALENDAR_CSS = `
   text-align: right;
   background: var(--background-secondary);
   border-right: 1px solid var(--background-modifier-border);
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
   min-height: 48px;
 }
 .uni-calendar-day-hour-cell {
   min-height: 48px;
   background: var(--background-primary);
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
 }
 
 /* === Event Bars (Month View) === */
@@ -307,7 +315,7 @@ const CALENDAR_CSS = `
   align-items: center;
   padding: 4px 8px;
   background: var(--background-secondary);
-  border-radius: 2px;
+  border-radius: 6px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -315,9 +323,12 @@ const CALENDAR_CSS = `
   font-size: var(--font-ui-smaller);
   color: var(--text-normal);
   min-height: 20px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
 }
 .uni-calendar-event-bar:hover {
   background: var(--background-modifier-hover);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
 .uni-calendar-event-bar-time {
   color: var(--text-muted);
@@ -352,15 +363,18 @@ const CALENDAR_CSS = `
   left: 0;
   right: 0;
   min-height: 20px;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 4px 8px;
   cursor: pointer;
   overflow: hidden;
   z-index: 2;
   box-sizing: border-box;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: box-shadow 0.15s ease, background 0.15s ease;
 }
 .uni-calendar-event-block:hover {
   z-index: 3;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
 }
 .uni-calendar-event-block-title {
   font-size: var(--font-ui-small);
@@ -431,23 +445,24 @@ const CALENDAR_CSS = `
   font-size: 11px;
   color: var(--text-faint);
   text-align: right;
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
   box-sizing: border-box;
 }
 .uni-calendar-day-column {
   flex: 1;
   position: relative;
-  border-right: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
 }
 .uni-calendar-day-column:last-child {
   border-right: none;
 }
 .uni-calendar-day-column.is-today {
   background: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-primary));
+  transition: background 0.3s ease;
 }
 .uni-calendar-hour-slot {
   height: 40px;
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
   box-sizing: border-box;
 }
 
@@ -470,7 +485,7 @@ const CALENDAR_CSS = `
   font-size: 11px;
   color: var(--text-faint);
   text-align: right;
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
   box-sizing: border-box;
 }
 .uni-calendar-day-single-column {
@@ -479,7 +494,7 @@ const CALENDAR_CSS = `
 }
 .uni-calendar-day-hour-slot {
   height: 48px;
-  border-bottom: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
+  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
   box-sizing: border-box;
 }
 
@@ -627,11 +642,14 @@ export class CalendarView extends ItemView {
     }
 
     if (state.status === 'error') {
-      this.syncStatusEl.setText('同步出错');
+      const MAX_LEN = 30;
+      const msg = state.message || '未知错误';
+      const short = msg.length > MAX_LEN ? msg.slice(0, MAX_LEN) + '…' : msg;
+      this.syncStatusEl.setText(`同步出错: ${short}`);
       this.syncStatusEl.addClass('is-error');
-      this.syncStatusEl.addEventListener('click', () => {
-        new Notice(state.message);
-      }, { once: true });
+      if (msg.length > MAX_LEN) {
+        this.syncStatusEl.setAttribute('title', msg);
+      }
     }
   }
 
