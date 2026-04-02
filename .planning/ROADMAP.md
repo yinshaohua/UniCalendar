@@ -97,8 +97,13 @@ Plans:
   1. Calendar UI uses rounded corners, soft color palette, and clean typography consistent with Apple Calendar aesthetics
   2. Event blocks, day cells, and navigation elements have consistent spacing and visual weight
   3. The calendar looks polished on both desktop and mobile screen sizes
-**Plans**: TBD
+**Plans:** 3 plans
 **UI hint**: yes
+
+Plans:
+- [ ] 05-01-PLAN.md -- CalendarView CSS polish: rounded corners, shadows, softened grids, transitions
+- [ ] 05-02-PLAN.md -- EventDetailModal polish and SettingsTab color palette picker
+- [ ] 05-03-PLAN.md -- Legacy CSS cleanup and visual verification checkpoint
 
 ## Progress
 
@@ -111,4 +116,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 2. ICS Feeds and Calendar Views | 0/5 | Planning complete | - |
 | 3. CalDAV Integration | 0/? | Not started | - |
 | 4. Google Calendar and Multi-Source Unification | 1/3 | In Progress|  |
-| 5. Apple Calendar UI Polish | 0/? | Not started | - |
+| 5. Apple Calendar UI Polish | 0/3 | Planning complete | - |
