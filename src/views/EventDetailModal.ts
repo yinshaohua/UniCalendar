@@ -15,6 +15,7 @@ export class EventDetailModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass('uni-calendar-event-detail');
+    this.modalEl.style.boxShadow = '0 8px 32px rgba(0,0,0,0.18)';
 
     // Title
     this.titleEl.setText(this.event.title);
@@ -81,7 +82,7 @@ export class EventDetailModal extends Modal {
       .uni-calendar-detail-row {
         display: flex;
         align-items: flex-start;
-        margin-bottom: 12px;
+        margin-bottom: 14px;
         font-size: var(--font-ui-small);
         color: var(--text-normal);
       }
@@ -89,6 +90,7 @@ export class EventDetailModal extends Modal {
         flex-shrink: 0;
         color: var(--text-muted);
         margin-right: 8px;
+        margin-top: 1px;
         display: flex;
         align-items: center;
       }
@@ -112,6 +114,13 @@ export class EventDetailModal extends Modal {
         flex-shrink: 0;
         margin-right: 8px;
         margin-top: 3px;
+      }
+      .uni-calendar-event-detail {
+        animation: uni-fade-in 0.2s ease;
+      }
+      @keyframes uni-fade-in {
+        from { opacity: 0; transform: translateY(4px); }
+        to { opacity: 1; transform: translateY(0); }
       }
     `});
   }

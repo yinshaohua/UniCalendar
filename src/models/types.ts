@@ -23,11 +23,11 @@ export interface CalendarSource {
     accessToken?: string;
     refreshToken?: string;
     tokenExpiry?: number;       // Unix timestamp in ms
-    calendarId?: string;        // Selected calendar ID from discovery
-    calendarName?: string;      // Display name of selected calendar
-    redirectUri?: string;       // User's configured redirect URI for OAuth
-  };
-  caldav?: { serverUrl: string; username: string; password: string; calendarPath?: string; calendarDisplayName?: string; };
+    calendarId?: string;        // Selected calendar ID from discovery (legacy single-select)
+    calendarName?: string;      // Display name of selected calendar (legacy single-select)
+    selectedCalendars?: Array<{ id: string; name: string }>;
+};
+  caldav?: { serverUrl: string; username: string; password: string; calendarPath?: string; calendarDisplayName?: string; selectedCalendars?: Array<{ path: string; displayName: string }>; };
   ics?: { feedUrl: string; };
 }
 
@@ -65,6 +65,17 @@ export function getNextColor(existingSources: CalendarSource[]): string {
   // SOURCE_COLORS is guaranteed non-empty, so fallback is always valid
   return SOURCE_COLORS.find(c => !usedColors.has(c)) ?? SOURCE_COLORS[0]!;
 }
+
+export const RECOMMENDED_PALETTE: Array<{ name: string; hex: string }> = [
+  { name: '番茄红', hex: '#FF6B6B' },
+  { name: '橘橙', hex: '#FFA06B' },
+  { name: '向日葵', hex: '#FFD93D' },
+  { name: '薄荷绿', hex: '#6BCB77' },
+  { name: '天空蓝', hex: '#74C0FC' },
+  { name: '海洋蓝', hex: '#4D96FF' },
+  { name: '薰衣紫', hex: '#9B59B6' },
+  { name: '樱花粉', hex: '#FF6B9D' },
+];
 
 export const DEFAULT_SETTINGS: UniCalendarSettings = {
   sources: [],
