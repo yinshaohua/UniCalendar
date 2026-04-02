@@ -80,6 +80,7 @@ export class SyncManager {
         const reason = result.reason instanceof Error
           ? result.reason.message
           : String(result.reason);
+        console.error(`[UniCalendar] Sync error for "${source.name}":`, result.reason);
         errors.push(`${source.name}: ${reason}`);
       }
     }

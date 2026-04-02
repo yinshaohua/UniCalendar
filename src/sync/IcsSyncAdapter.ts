@@ -126,7 +126,8 @@ export class IcsSyncAdapter {
 
       if (isAllDay) {
         start = this.icalDateToISO(occurrence.toICALString());
-        end = this.icalDateToISO(occEnd.toICALString());
+        // iCalendar uses exclusive end date for all-day events; subtract 1 day
+        end = this.prevDay(this.icalDateToISO(occEnd.toICALString()));
       } else {
         start = occurrence.toJSDate().toISOString();
         end = occEnd.toJSDate().toISOString();
@@ -134,7 +135,8 @@ export class IcsSyncAdapter {
     } else {
       if (isAllDay) {
         start = this.icalDateToISO(icalEvent.startDate.toICALString());
-        end = this.icalDateToISO(icalEvent.endDate.toICALString());
+        // iCalendar uses exclusive end date for all-day events; subtract 1 day
+        end = this.prevDay(this.icalDateToISO(icalEvent.endDate.toICALString()));
       } else {
         start = icalEvent.startDate.toJSDate().toISOString();
         end = icalEvent.endDate.toJSDate().toISOString();
@@ -164,5 +166,12 @@ export class IcsSyncAdapter {
   private icalDateToISO(icalStr: string): string {
     const dateOnly = icalStr.replace(/[^0-9]/g, '').slice(0, 8);
     return `${dateOnly.slice(0, 4)}-${dateOnly.slice(4, 6)}-${dateOnly.slice(6, 8)}`;
+  }
+
+  // Subtract one day from an ISO date string (e.g. "2026-04-02" -> "2026-04-01")
+  private prevDay(isoDate: string): string {
+    const d = new Date(isoDate + 'T00:00:00');
+    d.setDate(d.getDate() - 1);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 }

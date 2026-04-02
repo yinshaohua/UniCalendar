@@ -42,7 +42,7 @@ const CALENDAR_CSS = `
 .uni-calendar-month-label {
   font-size: 1.1em;
   font-weight: 700;
-  color: var(--text-normal);
+  color: var(--inline-title-color, var(--text-normal));
   min-width: 240px;
   user-select: none;
 }
@@ -173,13 +173,17 @@ const CALENDAR_CSS = `
   overflow: hidden;
 }
 .uni-calendar-day-header {
-  padding: 6px 4px;
+  padding: 0;
   text-align: center;
   font-size: var(--font-ui-smaller);
   color: var(--text-muted);
   background: var(--background-secondary);
   font-weight: 600;
   border-bottom: 1px solid var(--background-modifier-border);
+  white-space: nowrap;
+  overflow: hidden;
+  line-height: 22px;
+  height: 22px;
 }
 .uni-calendar-day {
   padding: 4px 6px;
@@ -315,7 +319,7 @@ const CALENDAR_CSS = `
   align-items: center;
   padding: 4px 8px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: 2px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -363,7 +367,7 @@ const CALENDAR_CSS = `
   left: 0;
   right: 0;
   min-height: 20px;
-  border-radius: 8px;
+  border-radius: 4px;
   padding: 4px 8px;
   cursor: pointer;
   overflow: hidden;
@@ -819,7 +823,7 @@ export class CalendarView extends ItemView {
 
   // === Month View ===
   private renderMonthGrid(gridEl: HTMLElement): void {
-    for (const dayName of DAY_NAMES) {
+    for (const dayName of DAY_FULL_NAMES) {
       gridEl.createDiv({ cls: 'uni-calendar-day-header', text: dayName });
     }
 

@@ -97,14 +97,39 @@ export class CalDavSyncAdapter {
     if (!caldav) {
       throw new Error('日历源缺少CalDAV配置');
     }
-    if (!caldav.calendarPath) {
+
+    // Prefer selectedCalendars array, fallback to legacy calendarPath
+    const calendarPaths: string[] = [];
+    if (caldav.selectedCalendars && caldav.selectedCalendars.length > 0) {
+      for (const cal of caldav.selectedCalendars) {
+        calendarPaths.push(cal.path);
+      }
+    } else if (caldav.calendarPath) {
+      calendarPaths.push(caldav.calendarPath);
+    } else {
       throw new Error('日历源缺少CalDAV日历路径, 请先发现日历');
     }
 
     const baseUrl = caldav.serverUrl.replace(/\/+$/, '');
-    const calendarUrl = new URL(caldav.calendarPath, baseUrl).href;
     const authHeader = this.createBasicAuthHeader(caldav.username, caldav.password);
 
+    const allEvents: CalendarEvent[] = [];
+    for (const calPath of calendarPaths) {
+      const events = await this.fetchCalendarEvents(calPath, baseUrl, authHeader, source.id, rangeStart, rangeEnd);
+      allEvents.push(...events);
+    }
+    return allEvents;
+  }
+
+  private async fetchCalendarEvents(
+    calendarPath: string,
+    baseUrl: string,
+    authHeader: string,
+    sourceId: string,
+    rangeStart: Date,
+    rangeEnd: Date,
+  ): Promise<CalendarEvent[]> {
+    const calendarUrl = new URL(calendarPath, baseUrl).href;
     const startUtc = this.dateToCalDavUTC(rangeStart);
     const endUtc = this.dateToCalDavUTC(rangeEnd);
 
@@ -145,16 +170,16 @@ export class CalDavSyncAdapter {
     }
 
     const icsTexts = this.parseEventReportXml(responseText);
-    const allEvents: CalendarEvent[] = [];
+    const events: CalendarEvent[] = [];
     for (const icsText of icsTexts) {
       try {
-        const events = this.icsAdapter.parseIcsText(icsText, source.id, rangeStart, rangeEnd);
-        allEvents.push(...events);
+        const parsed = this.icsAdapter.parseIcsText(icsText, sourceId, rangeStart, rangeEnd);
+        events.push(...parsed);
       } catch (err) {
         console.warn('[UniCalendar] Failed to parse CalDAV event:', err);
       }
     }
-    return allEvents;
+    return events;
   }
 
   private async getPrincipalUrl(url: string, authHeader: string): Promise<string> {

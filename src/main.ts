@@ -11,15 +11,14 @@ import { EventStore } from './store/EventStore';
 import { SyncManager } from './sync/SyncManager';
 import { CalendarView, VIEW_TYPE_CALENDAR } from './views/CalendarView';
 import { UniCalendarSettingsTab } from './settings/SettingsTab';
-import { GoogleAuthHelper } from './sync/GoogleAuthHelper';
 
 export default class UniCalendarPlugin extends Plugin {
   settings: UniCalendarSettings = DEFAULT_SETTINGS;
   eventStore: EventStore = new EventStore();
   syncManager: SyncManager = new SyncManager(() => { /* replaced in onload */ }, this.eventStore);
-  pendingOAuthVerifiers: Map<string, string> = new Map();
   private eventCache: EventCache = DEFAULT_CACHE;
   private syncIntervalId: number | null = null;
+  private lastSyncStatus: SyncState['status'] = 'idle';
 
   async onload(): Promise<void> {
     await this.loadPluginData();
@@ -42,49 +41,6 @@ export default class UniCalendarPlugin extends Plugin {
     });
 
     this.addSettingTab(new UniCalendarSettingsTab(this.app, this));
-
-    // OAuth2 callback handler for Google Calendar authorization
-    this.registerObsidianProtocolHandler('uni-calendar', async (data) => {
-      const { code, state } = data;
-      if (!code || !state) return;
-
-      // Find the Google source that initiated this auth flow
-      const source = this.settings.sources.find(
-        s => s.type === 'google' && s.id === state
-      );
-      if (!source?.google) {
-        new Notice('未找到对应的Google日历源');
-        return;
-      }
-
-      try {
-        const authHelper = new GoogleAuthHelper();
-        const codeVerifier = this.pendingOAuthVerifiers.get(source.id);
-        if (!codeVerifier) {
-          new Notice('授权会话已过期，请重新授权');
-          return;
-        }
-
-        const redirectUri = source.google.redirectUri || 'obsidian://uni-calendar/oauth-callback';
-        const tokens = await authHelper.exchangeCode(
-          code,
-          source.google.clientId,
-          source.google.clientSecret,
-          redirectUri,
-          codeVerifier,
-        );
-
-        source.google.accessToken = tokens.accessToken;
-        source.google.refreshToken = tokens.refreshToken;
-        source.google.tokenExpiry = tokens.tokenExpiry;
-
-        this.pendingOAuthVerifiers.delete(source.id);
-        await this.saveSettings();
-        new Notice('Google 日历授权成功！');
-      } catch (err) {
-        new Notice('Google 授权失败: ' + (err instanceof Error ? err.message : String(err)));
-      }
-    });
 
     this.app.workspace.onLayoutReady(() => {
       this.triggerSync();
@@ -177,6 +133,13 @@ export default class UniCalendarPlugin extends Plugin {
   }
 
   private onSyncStateChange(state: SyncState): void {
+    // Show Notice on first transition to error
+    if (state.status === 'error' && this.lastSyncStatus !== 'error') {
+      const msg = state.message || '未知错误';
+      new Notice(`同步出错: ${msg}`, 8000);
+    }
+    this.lastSyncStatus = state.status;
+
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
         (leaf.view as CalendarView).updateSyncStatus(state, this.settings.sources.length);

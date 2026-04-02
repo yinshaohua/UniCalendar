@@ -43,18 +43,26 @@ export class GoogleSyncAdapter {
     if (!source.google) {
       throw new Error('日历源缺少Google配置');
     }
-    if (!source.google.calendarId) {
+
+    // Prefer selectedCalendars array, fallback to legacy calendarId
+    const calendarIds: string[] = [];
+    if (source.google.selectedCalendars && source.google.selectedCalendars.length > 0) {
+      for (const cal of source.google.selectedCalendars) {
+        calendarIds.push(cal.id);
+      }
+    } else if (source.google.calendarId) {
+      calendarIds.push(source.google.calendarId);
+    } else {
       throw new Error('未选择要同步的Google日历');
     }
 
     const accessToken = await this.authHelper.ensureValidToken(source.google);
-    return this.fetchEvents(
-      source.google.calendarId,
-      accessToken,
-      source.id,
-      rangeStart,
-      rangeEnd,
-    );
+    const allEvents: CalendarEvent[] = [];
+    for (const calId of calendarIds) {
+      const events = await this.fetchEvents(calId, accessToken, source.id, rangeStart, rangeEnd);
+      allEvents.push(...events);
+    }
+    return allEvents;
   }
 
   private async fetchEvents(
@@ -117,7 +125,10 @@ export class GoogleSyncAdapter {
 
     if (isAllDay) {
       start = googleEvent.start.date!;
-      end = googleEvent.end.date!;
+      // Google API uses exclusive end date for all-day events; subtract 1 day
+      const endDate = new Date(googleEvent.end.date! + 'T00:00:00');
+      endDate.setDate(endDate.getDate() - 1);
+      end = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`;
     } else {
       start = new Date(googleEvent.start.dateTime!).toISOString();
       end = new Date(googleEvent.end.dateTime!).toISOString();
