@@ -894,7 +894,8 @@ export class CalendarView extends ItemView {
           const bar = eventsEl.createDiv({ cls: 'uni-calendar-event-bar' });
           const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
           bar.style.borderLeft = `3px solid ${sourceColor}`;
-          bar.style.background = `color-mix(in srgb, ${sourceColor} 25%, var(--background-secondary))`;
+          bar.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
+          bar.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
           if (!event.allDay) {
             const timeStr = new Date(event.start).toLocaleTimeString('zh-CN', {
               hour: '2-digit',
@@ -907,6 +908,14 @@ export class CalendarView extends ItemView {
           bar.addEventListener('click', (e) => {
             e.stopPropagation();
             this.showEventDetail(event);
+          });
+          bar.addEventListener('mouseenter', () => {
+            bar.style.background = `color-mix(in srgb, ${sourceColor} 25%, var(--background-primary))`;
+            bar.style.boxShadow = '0 2px 6px rgba(0,0,0,0.12)';
+          });
+          bar.addEventListener('mouseleave', () => {
+            bar.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
+            bar.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
           });
         }
 
@@ -1129,16 +1138,19 @@ export class CalendarView extends ItemView {
 
     const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
     block.style.borderLeft = `3px solid ${sourceColor}`;
-    block.style.background = `color-mix(in srgb, ${sourceColor} 30%, var(--background-primary))`;
+    block.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
+    block.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
 
     block.createDiv({ cls: 'uni-calendar-event-block-title', text: event.title });
     block.createDiv({ cls: 'uni-calendar-event-block-time', text: this.formatTimeRange(event.start, event.end) });
 
     block.addEventListener('mouseenter', () => {
-      block.style.background = `color-mix(in srgb, ${sourceColor} 40%, var(--background-primary))`;
+      block.style.background = `color-mix(in srgb, ${sourceColor} 25%, var(--background-primary))`;
+      block.style.boxShadow = '0 2px 6px rgba(0,0,0,0.12)';
     });
     block.addEventListener('mouseleave', () => {
-      block.style.background = `color-mix(in srgb, ${sourceColor} 30%, var(--background-primary))`;
+      block.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
+      block.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
     });
     block.addEventListener('click', (e) => {
       e.stopPropagation();
