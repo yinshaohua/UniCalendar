@@ -209,6 +209,9 @@ const CALENDAR_CSS = `
   color: var(--text-faint);
   background: var(--background-secondary-alt, var(--background-secondary));
 }
+.uni-calendar-day-today {
+  transition: background 0.3s ease;
+}
 .uni-calendar-day-today .uni-calendar-day-number {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
@@ -321,7 +324,7 @@ const CALENDAR_CSS = `
   align-items: center;
   padding: 4px 8px;
   background: var(--background-secondary);
-  border-radius: 2px;
+  border-radius: 6px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -369,7 +372,7 @@ const CALENDAR_CSS = `
   left: 0;
   right: 0;
   min-height: 20px;
-  border-radius: 4px;
+  border-radius: 8px;
   padding: 4px 8px;
   cursor: pointer;
   overflow: hidden;
