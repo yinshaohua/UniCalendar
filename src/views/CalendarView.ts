@@ -1080,12 +1080,20 @@ export class CalendarView extends ItemView {
     const weekStart = this.getWeekStart(new Date(this.displayYear, this.displayMonth, this.displayDay));
     const todayStr = this.getTodayStr();
 
-    // Collect all week events to compute dynamic hour range
+    // Pre-compute week dates and holiday info (compute once, use for headers + columns)
+    const weekDates: string[] = [];
+    const weekHolidays: Array<{ type: 'rest' | 'work' | null; name?: string }> = [];
     const allWeekEvents: CalendarEvent[] = [];
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(d.getDate() + i);
       const dateStr = this.dateToStr(d.getFullYear(), d.getMonth(), d.getDate());
+      weekDates.push(dateStr);
+      weekHolidays.push(
+        this.plugin.settings.showHolidays
+          ? this.holidayService.getHolidayInfo(dateStr)
+          : { type: null }
+      );
       const dayEvents = this.plugin.eventStore.getEventsForDate(dateStr).filter((e: CalendarEvent) => !e.allDay);
       allWeekEvents.push(...dayEvents);
     }
@@ -1097,11 +1105,26 @@ export class CalendarView extends ItemView {
     for (let i = 0; i < 7; i++) {
       const d = new Date(weekStart);
       d.setDate(d.getDate() + i);
-      const dateStr = this.dateToStr(d.getFullYear(), d.getMonth(), d.getDate());
       const dayName = DAY_FULL_NAMES[d.getDay()] ?? '';
       const label = dayName + ' ' + d.getDate() + '日';
       const header = headerRow.createDiv({ cls: 'uni-calendar-week-day-header', text: label });
-      if (dateStr === todayStr) header.addClass('is-today');
+      if (weekDates[i] === todayStr) header.addClass('is-today');
+
+      // Holiday badge in header (D-08)
+      const hi = weekHolidays[i]!;
+      if (hi.type === 'rest') {
+        header.style.position = 'relative';
+        header.createEl('span', {
+          text: '\u4F11',
+          cls: 'uni-calendar-holiday-badge uni-calendar-holiday-badge--rest',
+        });
+      } else if (hi.type === 'work') {
+        header.style.position = 'relative';
+        header.createEl('span', {
+          text: '\u73ED',
+          cls: 'uni-calendar-holiday-badge uni-calendar-holiday-badge--work',
+        });
+      }
     }
 
     // Body: hour labels + 7 day columns
@@ -1119,9 +1142,7 @@ export class CalendarView extends ItemView {
     // Day columns with events
     let todayColumnEl: HTMLElement | null = null;
     for (let i = 0; i < 7; i++) {
-      const d = new Date(weekStart);
-      d.setDate(d.getDate() + i);
-      const dateStr = this.dateToStr(d.getFullYear(), d.getMonth(), d.getDate());
+      const dateStr = weekDates[i]!;
       const isToday = dateStr === todayStr;
 
       const columnEl = body.createDiv({ cls: 'uni-calendar-day-column' });
@@ -1129,6 +1150,11 @@ export class CalendarView extends ItemView {
         columnEl.addClass('is-today');
         todayColumnEl = columnEl;
       }
+
+      // Holiday background on column (D-08)
+      const hi = weekHolidays[i]!;
+      if (hi.type === 'rest') columnEl.addClass('holiday-rest');
+      if (hi.type === 'work') columnEl.addClass('holiday-work');
 
       // Hour slot grid lines
       for (let hour = firstHour; hour <= lastHour; hour++) {
@@ -1157,7 +1183,25 @@ export class CalendarView extends ItemView {
     const d = new Date(this.displayYear, this.displayMonth, this.displayDay);
     const dayName = DAY_FULL_NAMES[d.getDay()] ?? '';
     const headerText = (this.displayMonth + 1) + '月' + this.displayDay + '日 ' + dayName;
-    gridEl.createDiv({ cls: 'uni-calendar-day-view-header', text: headerText });
+
+    // Compute holiday info once (D-08)
+    const dateStr = this.dateToStr(this.displayYear, this.displayMonth, this.displayDay);
+    const holidayInfo = this.plugin.settings.showHolidays
+      ? this.holidayService.getHolidayInfo(dateStr)
+      : { type: null };
+
+    const headerDiv = gridEl.createDiv({ cls: 'uni-calendar-day-view-header', text: headerText });
+
+    // Holiday badge in header (D-08)
+    if (holidayInfo.type) {
+      headerDiv.style.position = 'relative';
+      headerDiv.createEl('span', {
+        text: holidayInfo.type === 'rest' ? '\u4F11' : '\u73ED',
+        cls: holidayInfo.type === 'rest'
+          ? 'uni-calendar-holiday-badge uni-calendar-holiday-badge--rest'
+          : 'uni-calendar-holiday-badge uni-calendar-holiday-badge--work',
+      });
+    }
 
     const body = gridEl.createDiv({ cls: 'uni-calendar-day-body' });
 
@@ -1173,13 +1217,16 @@ export class CalendarView extends ItemView {
     // Single day column
     const columnEl = body.createDiv({ cls: 'uni-calendar-day-single-column' });
 
+    // Holiday background on column (D-08)
+    if (holidayInfo.type === 'rest') columnEl.addClass('holiday-rest');
+    if (holidayInfo.type === 'work') columnEl.addClass('holiday-work');
+
     // Hour slot grid lines
     for (let hour = firstHour; hour <= lastHour; hour++) {
       columnEl.createDiv({ cls: 'uni-calendar-day-hour-slot' });
     }
 
     // Render event blocks
-    const dateStr = this.dateToStr(this.displayYear, this.displayMonth, this.displayDay);
     const dayEvents = this.plugin.eventStore.getEventsForDate(dateStr).filter((e: CalendarEvent) => !e.allDay);
     const overlaps = this.detectOverlaps(dayEvents);
     for (const { event, column, totalColumns } of overlaps) {
