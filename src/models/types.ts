@@ -41,6 +41,8 @@ export interface UniCalendarSettings {
   syncInterval: number;          // minutes
   defaultView: 'month' | 'week' | 'day';
   monthOverflowMode: 'expand' | 'collapse';
+  showLunarCalendar: boolean;    // D-12: show lunar dates, festivals, solar terms in month view
+  showHolidays: boolean;         // D-12: show holiday/workday backgrounds and badges
 }
 
 export interface EventCache {
@@ -82,6 +84,8 @@ export const DEFAULT_SETTINGS: UniCalendarSettings = {
   syncInterval: 15,
   defaultView: 'month',
   monthOverflowMode: 'expand',
+  showLunarCalendar: true,
+  showHolidays: true,
 };
 
 export const DEFAULT_CACHE: EventCache = {

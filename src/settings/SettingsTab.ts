@@ -13,6 +13,7 @@ import { startOAuthServer } from '../sync/OAuthServer';
 interface UniCalendarPlugin extends Plugin {
   settings: UniCalendarSettings;
   saveSettings(): Promise<void>;
+  refreshCalendarViews(): void;
 }
 
 const CARD_STYLES = `
@@ -244,6 +245,31 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
         .setCta()
         .onClick(() => {
           new AddSourceModal(this.app, this.plugin, () => this.display()).open();
+        }));
+
+    // Section 3: Lunar Calendar & Holidays
+    containerEl.createEl('h2', { text: '农历与节假日' });
+
+    new Setting(containerEl)
+      .setName('显示农历')
+      .setDesc('在月视图中显示农历日期、节气和传统节日')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showLunarCalendar)
+        .onChange(async (value) => {
+          this.plugin.settings.showLunarCalendar = value;
+          await this.plugin.saveSettings();
+          this.plugin.refreshCalendarViews();
+        }));
+
+    new Setting(containerEl)
+      .setName('显示法定节假日')
+      .setDesc('标记中国大陆法定节假日（休）和调休工作日（班）')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.showHolidays)
+        .onChange(async (value) => {
+          this.plugin.settings.showHolidays = value;
+          await this.plugin.saveSettings();
+          this.plugin.refreshCalendarViews();
         }));
   }
 }
