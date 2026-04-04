@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to execute
+status: Milestone complete
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-04-04T17:41:57.387Z"
+last_updated: "2026-04-04T18:47:06.608Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 20
-  completed_plans: 16
-  percent: 80
+  completed_plans: 19
+  percent: 95
 ---
 
 # Project State
@@ -20,18 +20,18 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Users can see all their calendar events from multiple sources in one clean, reliable view inside Obsidian -- especially sources like DingTalk calendar that existing plugins fail to support.
-**Current focus:** Phase 05 — apple-calendar-ui-polish (Wave 2 remaining)
+**Current focus:** Phase 06 — chinese-lunar-calendar
 
 ## Current Position
 
-Phase: 05 (apple-calendar-ui-polish) — EXECUTING
-Plan: 3 of 3 (Wave 2 remaining)
+Phase: 06
+Plan: Not started
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 1
+- Total plans completed: 4
 - Average duration: 4min
 - Total execution time: 0.07 hours
 
@@ -40,6 +40,7 @@ Plan: 3 of 3 (Wave 2 remaining)
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01 | 1 | 4min | 4min |
+| 06 | 3 | - | - |
 
 **Recent Trend:**
 

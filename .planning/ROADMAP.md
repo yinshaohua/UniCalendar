@@ -133,6 +133,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 **UI hint**: yes
 
 Plans:
-- [ ] 06-01-PLAN.md -- LunarService + HolidayService with TDD (chinese-days library integration)
-- [ ] 06-02-PLAN.md -- Settings toggles for lunar calendar and holiday display
-- [ ] 06-03-PLAN.md -- CalendarView integration: lunar dates, holiday badges, today restyle, visual checkpoint
+- [x] 06-01-PLAN.md -- LunarService + HolidayService with TDD (chinese-days library integration)
+- [x] 06-02-PLAN.md -- Settings toggles for lunar calendar and holiday display
+- [x] 06-03-PLAN.md -- CalendarView integration: lunar dates, holiday badges, today restyle, visual checkpoint
