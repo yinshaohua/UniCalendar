@@ -24,12 +24,12 @@ Users can see all their calendar events from multiple sources in one clean, reli
 - ✓ Chinese lunar calendar overlay (dates, solar terms, festivals) — Validated in Phase 6
 - ✓ Chinese statutory holiday/workday indicators (休/班) — Validated in Phase 6
 - ✓ Lunar/holiday display toggles in settings — Validated in Phase 6
+- ✓ Apple Calendar-inspired UI (clean, rounded corners, soft colors) — Validated in Phase 5
 
 ### Active
 
 - [ ] Google Calendar read-only sync
 - [ ] Full page calendar view with month/week/day modes (rendered, needs polish)
-- [ ] Apple Calendar-inspired UI (clean, rounded corners, soft colors)
 - [ ] Multi-source event merging into unified timeline
 
 ### Out of Scope
@@ -88,4 +88,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-02 after Phase 3 completion*
+*Last updated: 2026-04-04 after Phase 5 completion*
