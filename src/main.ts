@@ -114,7 +114,7 @@ export default class UniCalendarPlugin extends Plugin {
     }
   }
 
-  private refreshCalendarViews(): void {
+  refreshCalendarViews(): void {
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
         const view = leaf.view as CalendarView;

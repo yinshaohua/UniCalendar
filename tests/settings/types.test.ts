@@ -46,6 +46,14 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.syncInterval).toBe(15);
     expect(DEFAULT_SETTINGS.defaultView).toBe('month');
   });
+
+  it('has showLunarCalendar defaulting to true', () => {
+    expect(DEFAULT_SETTINGS.showLunarCalendar).toBe(true);
+  });
+
+  it('has showHolidays defaulting to true', () => {
+    expect(DEFAULT_SETTINGS.showHolidays).toBe(true);
+  });
 });
 
 describe('DEFAULT_CACHE', () => {
