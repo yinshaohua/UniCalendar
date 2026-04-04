@@ -17,6 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 3: CalDAV Integration** - CalDAV protocol support with DingTalk as the primary acceptance target
 - [ ] **Phase 4: Google Calendar and Multi-Source Unification** - OAuth2 Google sync and unified multi-source event merging
 - [ ] **Phase 5: Apple Calendar UI Polish** - Visual refinement to Apple Calendar-inspired design with clean aesthetics
+- [ ] **Phase 6: Chinese Lunar Calendar Support** - 支持中国农历、节气、当前年份中国大陆放假日期
 
 ## Phase Details
 
@@ -108,7 +109,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -117,3 +118,21 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 3. CalDAV Integration | 0/? | Not started | - |
 | 4. Google Calendar and Multi-Source Unification | 1/3 | In Progress|  |
 | 5. Apple Calendar UI Polish | 2/3 | In Progress | - |
+| 6. Chinese Lunar Calendar Support | 0/3 | Planning complete | - |
+
+### Phase 6: Chinese Lunar Calendar Support
+**Goal**: Users see Chinese lunar dates, solar terms (节气), and current-year mainland China public holidays displayed in the calendar views
+**Depends on**: Phase 5
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06, D-07, D-08, D-09, D-10, D-11, D-12
+**Success Criteria** (what must be TRUE):
+  1. Each calendar day cell displays the corresponding Chinese lunar date (农历日期)
+  2. Solar terms (二十四节气) are marked on the correct dates with visual indicators
+  3. Current-year mainland China statutory holidays and adjusted workdays are clearly indicated
+  4. Lunar/holiday information renders correctly on both desktop and mobile
+**Plans:** 3 plans
+**UI hint**: yes
+
+Plans:
+- [ ] 06-01-PLAN.md -- LunarService + HolidayService with TDD (chinese-days library integration)
+- [ ] 06-02-PLAN.md -- Settings toggles for lunar calendar and holiday display
+- [ ] 06-03-PLAN.md -- CalendarView integration: lunar dates, holiday badges, today restyle, visual checkpoint
