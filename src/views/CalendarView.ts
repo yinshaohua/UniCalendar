@@ -39,7 +39,12 @@ const CALENDAR_CSS = `
   gap: var(--size-4-2);
 }
 
-/* Month label */
+/* Label group: month label + lunar month, fixed width to stabilize toolbar buttons */
+.uni-calendar-label-group {
+  display: flex;
+  align-items: baseline;
+  min-width: 300px;
+}
 .uni-calendar-month-label {
   font-size: 1.1em;
   font-weight: 700;
@@ -642,12 +647,13 @@ export class CalendarView extends ItemView {
     // Left: month label, nav arrows, today, view tabs
     const left = toolbar.createDiv({ cls: 'uni-calendar-toolbar-left' });
 
-    this.monthLabelEl = left.createEl('span', {
+    const labelGroup = left.createDiv({ cls: 'uni-calendar-label-group' });
+    this.monthLabelEl = labelGroup.createEl('span', {
       text: this.getLabel(),
       cls: 'uni-calendar-month-label',
     });
 
-    this.lunarMonthEl = left.createEl('span', {
+    this.lunarMonthEl = labelGroup.createEl('span', {
       text: '',
       cls: 'uni-calendar-lunar-month',
     });
