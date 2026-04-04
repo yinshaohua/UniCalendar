@@ -204,10 +204,6 @@ const CALENDAR_CSS = `
   color: var(--text-faint);
   background: var(--background-secondary-alt, var(--background-secondary));
 }
-.uni-calendar-day-today {
-  background: color-mix(in srgb, var(--interactive-accent) 12%, var(--background-primary));
-  transition: background 0.3s ease;
-}
 .uni-calendar-day-today .uni-calendar-day-number {
   background: var(--interactive-accent);
   color: var(--text-on-accent);
@@ -271,7 +267,6 @@ const CALENDAR_CSS = `
   border-right: none;
 }
 .uni-calendar-week-cell.is-today {
-  background: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-primary));
   transition: background 0.3s ease;
 }
 
@@ -470,7 +465,6 @@ const CALENDAR_CSS = `
   border-right: none;
 }
 .uni-calendar-day-column.is-today {
-  background: color-mix(in srgb, var(--interactive-accent) 5%, var(--background-primary));
   transition: background 0.3s ease;
 }
 .uni-calendar-hour-slot {
@@ -509,6 +503,81 @@ const CALENDAR_CSS = `
   height: 48px;
   border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
   box-sizing: border-box;
+}
+
+/* === Lunar Calendar Layer === */
+.uni-calendar-day {
+  position: relative;
+}
+.uni-calendar-day-top {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 24px;
+}
+.uni-calendar-lunar-text {
+  font-size: var(--font-ui-smaller);
+  font-weight: 400;
+  color: var(--text-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.uni-calendar-lunar-text--festival {
+  font-weight: 600;
+  color: var(--text-accent);
+}
+.uni-calendar-lunar-text--solar-term {
+  color: color-mix(in srgb, var(--interactive-accent) 80%, var(--text-normal));
+}
+.uni-calendar-day--holiday-rest {
+  background: color-mix(in srgb, #ef4444 8%, var(--background-primary));
+}
+.uni-calendar-day--holiday-work {
+  background: color-mix(in srgb, #f59e0b 8%, var(--background-primary));
+}
+.uni-calendar-day-outside.uni-calendar-day--holiday-rest {
+  background: color-mix(in srgb, #ef4444 8%, var(--background-secondary-alt, var(--background-secondary)));
+}
+.uni-calendar-day-outside.uni-calendar-day--holiday-work {
+  background: color-mix(in srgb, #f59e0b 8%, var(--background-secondary-alt, var(--background-secondary)));
+}
+.uni-calendar-holiday-badge {
+  position: absolute;
+  top: 0;
+  right: 4px;
+  font-size: var(--font-ui-smaller);
+  font-weight: 600;
+  line-height: 1.0;
+  padding: 0 4px;
+  border-radius: var(--radius-s);
+}
+.uni-calendar-holiday-badge--rest {
+  background: color-mix(in srgb, #ef4444 75%, var(--background-primary));
+  color: #ffffff;
+}
+.uni-calendar-holiday-badge--work {
+  background: color-mix(in srgb, #f59e0b 75%, var(--background-primary));
+  color: #ffffff;
+}
+.uni-calendar-lunar-month {
+  font-size: var(--font-ui-small);
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 8px;
+}
+/* Week/day view holiday backgrounds */
+.uni-calendar-day-column.holiday-rest {
+  background: color-mix(in srgb, #ef4444 8%, var(--background-primary));
+}
+.uni-calendar-day-column.holiday-work {
+  background: color-mix(in srgb, #f59e0b 8%, var(--background-primary));
+}
+.uni-calendar-day-single-column.holiday-rest {
+  background: color-mix(in srgb, #ef4444 8%, var(--background-primary));
+}
+.uni-calendar-day-single-column.holiday-work {
+  background: color-mix(in srgb, #f59e0b 8%, var(--background-primary));
 }
 
 `;
