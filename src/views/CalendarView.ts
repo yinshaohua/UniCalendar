@@ -2,6 +2,7 @@ import { ItemView, WorkspaceLeaf, Notice, setIcon } from 'obsidian';
 import { CalendarEvent, SyncState } from '../models/types';
 import { EventStore } from '../store/EventStore';
 import { EventDetailModal } from './EventDetailModal';
+import { LunarService, HolidayService } from '../lunar';
 
 export const VIEW_TYPE_CALENDAR = 'uni-calendar-view';
 
@@ -597,8 +598,11 @@ export class CalendarView extends ItemView {
   private syncStatusEl: HTMLElement | null = null;
   private calendarGridEl: HTMLElement | null = null;
   private monthLabelEl: HTMLElement | null = null;
+  private lunarMonthEl: HTMLElement | null = null;
   private contentContainerEl: HTMLElement | null = null;
   private nowLineInterval: number | null = null;
+  private lunarService = new LunarService();
+  private holidayService = new HolidayService();
 
   private displayYear: number;
   private displayMonth: number;
@@ -643,6 +647,12 @@ export class CalendarView extends ItemView {
       text: this.getLabel(),
       cls: 'uni-calendar-month-label',
     });
+
+    this.lunarMonthEl = left.createEl('span', {
+      text: '',
+      cls: 'uni-calendar-lunar-month',
+    });
+    this.updateLunarMonthLabel();
 
     const prevBtn = left.createEl('button', { cls: 'uni-calendar-nav-btn' });
     setIcon(prevBtn, 'chevron-left');
@@ -748,6 +758,7 @@ export class CalendarView extends ItemView {
     this.syncStatusEl = null;
     this.calendarGridEl = null;
     this.monthLabelEl = null;
+    this.lunarMonthEl = null;
     this.contentContainerEl = null;
   }
 
@@ -810,7 +821,20 @@ export class CalendarView extends ItemView {
     if (this.monthLabelEl) {
       this.monthLabelEl.setText(this.getLabel());
     }
+    this.updateLunarMonthLabel();
     this.renderCurrentView();
+  }
+
+  private updateLunarMonthLabel(): void {
+    if (!this.lunarMonthEl) return;
+    if (this.currentViewMode === 'month' && this.plugin.settings.showLunarCalendar) {
+      const lunarMonth = this.lunarService.getLunarMonthForTitle(this.displayYear, this.displayMonth);
+      this.lunarMonthEl.setText(lunarMonth);
+      this.lunarMonthEl.style.display = '';
+    } else {
+      this.lunarMonthEl.setText('');
+      this.lunarMonthEl.style.display = 'none';
+    }
   }
 
   private renderCurrentView(): void {
@@ -942,10 +966,18 @@ export class CalendarView extends ItemView {
       const isToday = dateStr === todayStr;
       if (isToday) cls += ' uni-calendar-day-today';
 
+      // Compute holiday info once per cell (used for both class and badge)
+      const holidayInfo = this.plugin.settings.showHolidays
+        ? this.holidayService.getHolidayInfo(dateStr)
+        : { type: null };
+      if (holidayInfo.type === 'rest') cls += ' uni-calendar-day--holiday-rest';
+      if (holidayInfo.type === 'work') cls += ' uni-calendar-day--holiday-work';
+
       const cell = gridEl.createDiv({ cls });
 
-      // Day number — clickable to switch to day view
-      const dayNumberEl = cell.createEl('span', {
+      // Day top row: number + lunar text (D-01)
+      const dayTop = cell.createDiv({ cls: 'uni-calendar-day-top' });
+      const dayNumberEl = dayTop.createEl('span', {
         text: String(displayDay),
         cls: isToday ? 'uni-calendar-day-number uni-calendar-day-number-link' : 'uni-calendar-day-number-link',
       });
@@ -957,6 +989,31 @@ export class CalendarView extends ItemView {
         this.displayDay = d.getDate();
         this.switchViewMode('day');
       });
+
+      // Lunar text (D-01, D-02, D-05)
+      if (this.plugin.settings.showLunarCalendar) {
+        const [ly, lm, ld] = dateStr.split('-').map(Number) as [number, number, number];
+        const lunarInfo = this.lunarService.getLunarDayInfo(ly, lm - 1, ld);
+        const lunarCls = lunarInfo.type === 'festival'
+          ? 'uni-calendar-lunar-text uni-calendar-lunar-text--festival'
+          : lunarInfo.type === 'solarTerm'
+          ? 'uni-calendar-lunar-text uni-calendar-lunar-text--solar-term'
+          : 'uni-calendar-lunar-text';
+        dayTop.createEl('span', { text: lunarInfo.text, cls: lunarCls });
+      }
+
+      // Holiday badge (D-06, D-07)
+      if (holidayInfo.type === 'rest') {
+        cell.createEl('span', {
+          text: '\u4F11',
+          cls: 'uni-calendar-holiday-badge uni-calendar-holiday-badge--rest',
+        });
+      } else if (holidayInfo.type === 'work') {
+        cell.createEl('span', {
+          text: '\u73ED',
+          cls: 'uni-calendar-holiday-badge uni-calendar-holiday-badge--work',
+        });
+      }
 
       // Render events for this day
       const events = this.plugin.eventStore.getEventsForDate(dateStr);
