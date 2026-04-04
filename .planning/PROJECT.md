@@ -21,6 +21,9 @@ Users can see all their calendar events from multiple sources in one clean, reli
 - ✓ Settings UI for managing connections and preferences — Validated in Phase 1
 - ✓ ICS feed import — Validated in Phase 2
 - ✓ Color-coded events by calendar source — Validated in Phase 2
+- ✓ Chinese lunar calendar overlay (dates, solar terms, festivals) — Validated in Phase 6
+- ✓ Chinese statutory holiday/workday indicators (休/班) — Validated in Phase 6
+- ✓ Lunar/holiday display toggles in settings — Validated in Phase 6
 
 ### Active
 
