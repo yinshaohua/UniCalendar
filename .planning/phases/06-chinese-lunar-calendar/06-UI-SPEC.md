@@ -40,7 +40,7 @@ Inherited from Phase 2. No new tokens. Declared values (Obsidian `--size-4-*` to
 | xl | 24px | `var(--size-4-6)` | Not used in this phase |
 
 Exceptions:
-- Holiday badge ("xiu"/"ban"): `padding: 1px 3px` -- smaller than grid to fit in day cell corner without crowding
+- Holiday badge ("xiu"/"ban"): `padding: 2px 4px` -- grid-aligned compact padding for day cell corner badge
 - Lunar text next to day number: `margin-left: 4px` inline gap
 - Month title lunar month text: `margin-left: 8px` gap from Gregorian title
 
@@ -54,14 +54,16 @@ Inherits Phase 2 baseline. New roles added for lunar calendar elements:
 |------|------|--------|-------------|-------|
 | Body | `var(--font-ui-small)` (~13px) | 400 | 1.4 | Event bar text, modal body text |
 | Label | `var(--font-ui-smaller)` (~11px) | 400 | 1.3 | Hour labels, overflow indicator |
-| Heading | `1.1em` (~15px) | 700 | 1.2 | Toolbar month/date label |
+| Heading | `var(--font-ui-small)` (~13px) | 600 | 1.2 | Toolbar month/date label |
 | Lunar date | `var(--font-ui-smaller)` (~11px) | 400 | 1.3 | Lunar day text next to Gregorian number in month view |
-| Lunar festival | `var(--font-ui-smaller)` (~11px) | 600 | 1.3 | Traditional festival names (bold to distinguish from regular lunar dates) |
-| Solar term | `var(--font-ui-smaller)` (~11px) | 500 | 1.3 | Solar term names in month view (medium weight, colored) |
-| Lunar month (title) | `0.85em` (~13px) | 400 | 1.2 | Lunar month name appended to toolbar title |
-| Holiday badge | `10px` | 600 | 1.0 | "xiu"/"ban" corner badge text |
+| Lunar festival | `var(--font-ui-smaller)` (~11px) | 600 | 1.3 | Traditional festival names (semibold to distinguish from regular lunar dates) |
+| Solar term | `var(--font-ui-smaller)` (~11px) | 400 | 1.3 | Solar term names in month view (regular weight, distinguished by color only) |
+| Lunar month (title) | `var(--font-ui-small)` (~13px) | 400 | 1.2 | Lunar month name appended to toolbar title |
+| Holiday badge | `var(--font-ui-smaller)` (~11px) | 600 | 1.0 | "xiu"/"ban" corner badge text |
 
-**Weights used:** 400 (body, lunar date, lunar month title), 500 (solar term), 600 (headings, festival, badge), 700 (toolbar title). Four weights total -- 500 is new for solar term differentiation.
+**Sizes used (4 tokens):** `var(--font-ui-smaller)` (~11px), `var(--font-ui-small)` (~13px). Two Obsidian tokens plus inherited Body and Heading sizes from Phase 2. Total distinct size expressions: `var(--font-ui-smaller)`, `var(--font-ui-small)`, plus Phase 2 inherited body (`var(--font-ui-medium)`) and large heading sizes. This phase declares only 2 new size tokens.
+
+**Weights used (2):** 400 (body, lunar date, solar term, lunar month title) and 600 (heading, festival, badge). Solar terms rely on color for distinction -- weight difference is not needed. Headings use 600 semibold instead of 700 bold for consistency with the two-weight constraint.
 
 ---
 
@@ -87,7 +89,7 @@ Inherits Phase 2/5 baseline. New semantic colors added for lunar calendar layer:
 
 **Accent reserved for:** Today date number circle, active view tab, solar term text tint, festival text. Same elements as Phase 2 plus lunar calendar elements.
 
-**Today styling change (D-09):** Today cell removes its background tint (`color-mix(in srgb, var(--interactive-accent) 12%, ...)` is removed). Today is identified solely by the day number circle: `background: var(--interactive-accent); color: var(--text-on-accent); border-radius: 50%; width: 24px; height: 24px; font-weight: 700;` (already exists). This frees the cell background for holiday/workday indicators without visual conflict.
+**Today styling change (D-09):** Today cell removes its background tint (`color-mix(in srgb, var(--interactive-accent) 12%, ...)` is removed). Today is identified solely by the day number circle: `background: var(--interactive-accent); color: var(--text-on-accent); border-radius: 50%; width: 24px; height: 24px; font-weight: 600;` (already exists). This frees the cell background for holiday/workday indicators without visual conflict.
 
 **Dark mode compatibility:** All `color-mix()` values use `var(--background-primary)` as the base, so tints adapt to dark themes automatically. Badge backgrounds use fixed hex mixed with theme background, producing appropriate muted tones in dark mode.
 
@@ -128,7 +130,7 @@ Renders inline to the right of the Gregorian day number within each month day ce
 - Overflow: `text-overflow: ellipsis; white-space: nowrap; overflow: hidden;`
 - Display priority (D-02): Traditional festival > Solar term > Lunar day
   - Festival: weight 600, color `var(--text-accent)`
-  - Solar term: weight 500, color `color-mix(in srgb, var(--interactive-accent) 80%, var(--text-normal))`
+  - Solar term: weight 400, color `color-mix(in srgb, var(--interactive-accent) 80%, var(--text-normal))`
   - Lunar day: weight 400, color `var(--text-faint)`
 
 #### Day Number Row Layout
@@ -160,8 +162,8 @@ Small label in the top-right corner of day cells indicating statutory holiday ("
 - CSS class: `uni-calendar-holiday-badge`
 - Position: `position: absolute; top: 2px; right: 4px;`
 - The day cell (`.uni-calendar-day`) must have `position: relative;`
-- Font: `10px`, weight 600, line-height 1.0
-- Padding: `1px 3px`
+- Font: `var(--font-ui-smaller)`, weight 600, line-height 1.0
+- Padding: `2px 4px`
 - Border-radius: `var(--radius-s)` (3px)
 - "xiu" variant (`uni-calendar-holiday-badge--rest`):
   - Background: `color-mix(in srgb, #ef4444 75%, var(--background-primary))`
@@ -196,7 +198,7 @@ The toolbar title gains an appended lunar month name:
 
 - Appended as a separate `span` after the existing title text
 - CSS class: `uni-calendar-lunar-month`
-- Font: `0.85em`, weight 400, color `var(--text-muted)`
+- Font: `var(--font-ui-small)`, weight 400, color `var(--text-muted)`
 - Margin: `margin-left: 8px`
 - The lunar month shown corresponds to the 15th of the displayed Gregorian month (to handle months that span two lunar months -- pick the one covering the majority)
 
@@ -206,7 +208,7 @@ Week view day headers and day view header gain holiday badges:
 
 - Week view: Badge appears inside `.uni-calendar-week-day-header` element, after the day label text
 - Day view: Badge appears inside `.uni-calendar-day-view-header` element
-- Same badge styling as month view but slightly larger: `font-size: 11px; padding: 1px 4px;`
+- Same badge styling as month view: `font-size: var(--font-ui-smaller); padding: 2px 4px;`
 - Background tint applied to day columns (week view) and day body (day view)
 
 ---
@@ -288,7 +290,7 @@ Both toggles are independent. User can show lunar dates without holidays, or vic
 | Lunar disabled, holiday enabled | No lunar text. Holiday backgrounds and badges shown. |
 | Both disabled | Calendar appears identical to pre-Phase-6 state. |
 | Holiday data loading | No badges or backgrounds until data arrives. Lunar dates render immediately (computed locally). |
-| Holiday data fetch failed (online) | Show Notice: "jiejiari-shuju-huoqu-shibai". Use cached data if available. No badges if no cache. |
+| Holiday data fetch failed (online) | Show Notice: "节假日数据获取失败，将使用缓存数据". Use cached data if available. No badges if no cache. |
 | Holiday data fetch failed (offline) | Use cached data silently. If no cache, no holiday indicators shown. |
 | Year boundary | Holiday data fetched per year. When navigating to a new year, fetch that year's data. Cache per-year. |
 
@@ -340,7 +342,7 @@ Keep:
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-weight: 700;
+  font-weight: 600;
 }
 ```
 
