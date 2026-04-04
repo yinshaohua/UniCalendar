@@ -49,9 +49,9 @@ export class LunarService {
   };
  }
 
- /** Get lunar month name for toolbar title (D-03). Uses 15th for dominant month. */
+ /** Get lunar month name for toolbar title (D-03). Uses 1st day of Gregorian month. */
  getLunarMonthForTitle(year: number, month: number): string {
-  const dateStr = this.formatDate(year, month, 15);
+  const dateStr = this.formatDate(year, month, 1);
   const lunar = getLunarDate(dateStr);
   return lunar.lunarMonCN;
  }

@@ -44,7 +44,6 @@ const CALENDAR_CSS = `
   font-size: 1.1em;
   font-weight: 700;
   color: var(--inline-title-color, var(--text-normal));
-  min-width: 240px;
   user-select: none;
 }
 
@@ -829,7 +828,7 @@ export class CalendarView extends ItemView {
     if (!this.lunarMonthEl) return;
     if (this.currentViewMode === 'month' && this.plugin.settings.showLunarCalendar) {
       const lunarMonth = this.lunarService.getLunarMonthForTitle(this.displayYear, this.displayMonth);
-      this.lunarMonthEl.setText(lunarMonth);
+      this.lunarMonthEl.setText('农历' + lunarMonth);
       this.lunarMonthEl.style.display = '';
     } else {
       this.lunarMonthEl.setText('');
