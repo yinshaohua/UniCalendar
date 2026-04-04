@@ -104,7 +104,7 @@ Plans:
 Plans:
 - [x] 05-01-PLAN.md -- CalendarView CSS polish: rounded corners, shadows, softened grids, transitions
 - [x] 05-02-PLAN.md -- EventDetailModal polish and SettingsTab color palette picker
-- [ ] 05-03-PLAN.md -- Legacy CSS cleanup and visual verification checkpoint
+- [x] 05-03-PLAN.md -- Legacy CSS cleanup and visual verification checkpoint
 
 ## Progress
 
