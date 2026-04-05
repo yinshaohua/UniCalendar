@@ -52,9 +52,21 @@ export interface EventCache {
   cacheWindowEnd: string;
 }
 
+export interface HolidayCacheEntry {
+  name: string;
+  date: string;
+  isOffDay: boolean;
+}
+
+export interface HolidayCache {
+  lastFetchTime: number | null;   // Unix timestamp ms, for 24h interval check per D-03
+  years: Record<string, HolidayCacheEntry[]>;  // Key is year string e.g. "2026"
+}
+
 export interface UniCalendarData {
   settings: UniCalendarSettings;
   eventCache: EventCache;
+  holidayCache: HolidayCache;  // Per D-04: cached in plugin data storage
 }
 
 export const SOURCE_COLORS: string[] = [
@@ -93,4 +105,9 @@ export const DEFAULT_CACHE: EventCache = {
   lastSyncTime: null,
   cacheWindowStart: '',
   cacheWindowEnd: '',
+};
+
+export const DEFAULT_HOLIDAY_CACHE: HolidayCache = {
+  lastFetchTime: null,
+  years: {},
 };
