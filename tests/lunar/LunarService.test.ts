@@ -58,7 +58,8 @@ describe('LunarService', () => {
   });
 
   it('festival: 中元 (七月十五)', () => {
-   const info = service.getLunarDayInfo(2026, 7, 25);
+   // 2026-08-27 is 七月十五 (month 7 in JS = August)
+   const info = service.getLunarDayInfo(2026, 7, 27);
    expect(info.type).toBe('festival');
    expect(info.text).toBe('中元');
   });
@@ -76,7 +77,8 @@ describe('LunarService', () => {
   });
 
   it('festival: 腊八 (腊月初八)', () => {
-   const info = service.getLunarDayInfo(2027, 0, 17);
+   // 2027-01-15 is 腊月初八
+   const info = service.getLunarDayInfo(2027, 0, 15);
    expect(info.type).toBe('festival');
    expect(info.text).toBe('腊八');
   });
@@ -90,11 +92,12 @@ describe('LunarService', () => {
  });
 
  describe('getLunarDayInfo - obscure festivals NOT shown', () => {
-  it('does not show 犬日 (正月初二)', () => {
-   // 2026-02-18 is 正月初二, was showing "犬日" with getLunarFestivals
-   const info = service.getLunarDayInfo(2026, 1, 18);
+  it('does not show obscure folk festivals (正月初三)', () => {
+   // 2026-02-19 is 正月初三, no solar term, no canonical festival
+   // Old getLunarFestivals would show folk festivals for such dates
+   const info = service.getLunarDayInfo(2026, 1, 19);
    expect(info.type).toBe('lunarDay');
-   expect(info.text).toBe('初二');
+   expect(info.text).toBe('初三');
   });
 
   it('does not show 文殊菩萨诞辰 (四月初四)', () => {
