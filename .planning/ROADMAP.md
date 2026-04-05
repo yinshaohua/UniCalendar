@@ -151,3 +151,21 @@ Plans:
 
 Plans:
 - [x] 07-01-PLAN.md -- LunarService TDD: canonical festival map, 除夕 detection, leap month display
+
+### Phase 8: 法定假日的动态获取
+
+**Goal:** HolidayService dynamically fetches mainland China public holiday data from NateScarlet/holiday-cn, with 24h-throttled updates piggybacking on calendar sync, offline cache persistence, and chinese-days static fallback
+**Requirements**: D-01, D-02, D-03, D-04, D-05, D-06, D-07
+**Depends on:** Phase 7
+**Success Criteria** (what must be TRUE):
+  1. Holiday data is fetched from NateScarlet/holiday-cn via jsdelivr CDN (with raw.githubusercontent.com fallback)
+  2. Fetched data covers current year + next year, cached in plugin data storage
+  3. Update checks piggyback on calendar sync with 24-hour throttle
+  4. Dynamic data takes priority over chinese-days static data; fallback is seamless
+  5. Fetch failures show Notice and continue with cache/static data
+  6. getHolidayInfo() remains synchronous -- CalendarView unchanged
+**Plans:** 2 plans
+
+Plans:
+- [ ] 08-01-PLAN.md -- HolidayFetcher TDD + HolidayService refactor (dynamic priority + static fallback)
+- [ ] 08-02-PLAN.md -- Plugin lifecycle integration: cache persistence, triggerSync wiring, error handling
