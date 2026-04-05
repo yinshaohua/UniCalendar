@@ -16,24 +16,49 @@ const DAY_OF_WEEK_NAMES = new Set([
 ]);
 
 export class HolidayService {
+ private dynamicData: Map<string, { name: string; isOffDay: boolean }> = new Map();
+
+ /**
+  * Load dynamic holiday data from holiday-cn cache.
+  * Called after HolidayFetcher retrieves data or on plugin startup from cache.
+  * Replaces any previously loaded dynamic data entirely.
+  */
+ loadDynamicData(data: Map<string, { name: string; isOffDay: boolean }>): void {
+  this.dynamicData = data;
+ }
+
  /**
   * Get holiday info for a date string (YYYY-MM-DD).
   *
-  * Uses chinese-days built-in static data (covers 2004-2026).
-  * Per user decision, Phase 6 uses static data ONLY -- online fetching
-  * and automatic updates are deferred to a future phase.
+  * Per D-06: Dynamic data (from holiday-cn) takes priority over static
+  * chinese-days data. Falls back to chinese-days when date not in dynamic set.
   *
   * Detection logic:
-  * - getDayDetail().name is a day-of-week string for regular days,
-  *   and a holiday name (e.g. "Spring Festival,春节,4") for holiday-group days.
-  * - Holiday-group day with work=false -> 'rest' (statutory holiday / compensatory rest)
-  * - Holiday-group day with work=true -> 'work' (adjusted workday / 补班)
-  * - Regular day (name is day-of-week) -> null
+  * - Dynamic data: isOffDay=true -> 'rest', isOffDay=false -> 'work'
+  * - Static fallback uses chinese-days getDayDetail()
+  * - Regular days (no holiday data) -> null
   *
-  * The try-catch provides graceful fallback for invalid dates or dates
-  * outside the chinese-days coverage range.
+  * Interface remains synchronous -- no CalendarView changes needed.
   */
  getHolidayInfo(dateStr: string): HolidayInfo {
+  // Per D-06: Dynamic data takes priority over static chinese-days data
+  const dynamic = this.dynamicData.get(dateStr);
+  if (dynamic) {
+   return {
+    type: dynamic.isOffDay ? 'rest' : 'work',
+    name: dynamic.name,
+   };
+  }
+
+  // Fallback to chinese-days static data (per D-06)
+  return this.getStaticHolidayInfo(dateStr);
+ }
+
+ /**
+  * Look up holiday info from chinese-days static data.
+  * Covers 2004-2026 range with built-in data.
+  */
+ private getStaticHolidayInfo(dateStr: string): HolidayInfo {
   try {
    const detail = getDayDetail(dateStr);
    if (!detail) return { type: null };
