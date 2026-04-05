@@ -188,5 +188,5 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md -- Code fixes: wire defaultView, leap month "闰" prefix, fix all-day event test expectations
-- [ ] 09-02-PLAN.md -- Documentation: Phase 7 VERIFICATION.md, REQUIREMENTS.md traceability update
+- [x] 09-01-PLAN.md -- Code fixes: wire defaultView, leap month "闰" prefix, fix all-day event test expectations
+- [x] 09-02-PLAN.md -- Documentation: Phase 7 VERIFICATION.md, REQUIREMENTS.md traceability update
