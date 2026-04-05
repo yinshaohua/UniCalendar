@@ -82,6 +82,6 @@ export class LunarService {
  getLunarMonthForTitle(year: number, month: number): string {
   const dateStr = this.formatDate(year, month, 1);
   const lunar = getLunarDate(dateStr);
-  return lunar.lunarMonCN;
+  return lunar.isLeap ? `闰${lunar.lunarMonCN}` : lunar.lunarMonCN;
  }
 }

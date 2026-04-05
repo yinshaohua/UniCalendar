@@ -643,6 +643,7 @@ export class CalendarView extends ItemView {
     container.empty();
     container.addClass('uni-calendar-view');
     container.createEl('style', { text: CALENDAR_CSS });
+    this.currentViewMode = this.plugin.settings.defaultView;
 
     // === Toolbar ===
     const toolbar = container.createDiv({ cls: 'uni-calendar-toolbar' });
