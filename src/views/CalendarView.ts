@@ -609,7 +609,7 @@ export class CalendarView extends ItemView {
   private contentContainerEl: HTMLElement | null = null;
   private nowLineInterval: number | null = null;
   private lunarService = new LunarService();
-  private holidayService = new HolidayService();
+  holidayService = new HolidayService();
 
   private displayYear: number;
   private displayMonth: number;

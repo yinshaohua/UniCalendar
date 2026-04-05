@@ -4,9 +4,13 @@ import {
   UniCalendarData,
   DEFAULT_SETTINGS,
   DEFAULT_CACHE,
+  DEFAULT_HOLIDAY_CACHE,
   EventCache,
   SyncState,
+  HolidayCache,
+  HolidayCacheEntry,
 } from './models/types';
+import { HolidayFetcher } from './lunar/HolidayFetcher';
 import { EventStore } from './store/EventStore';
 import { SyncManager } from './sync/SyncManager';
 import { CalendarView, VIEW_TYPE_CALENDAR } from './views/CalendarView';
@@ -17,6 +21,9 @@ export default class UniCalendarPlugin extends Plugin {
   eventStore: EventStore = new EventStore();
   syncManager: SyncManager = new SyncManager(() => { /* replaced in onload */ }, this.eventStore);
   private eventCache: EventCache = DEFAULT_CACHE;
+  private holidayCache: HolidayCache = DEFAULT_HOLIDAY_CACHE;
+  private holidayFetcher: HolidayFetcher = new HolidayFetcher();
+  private isHolidayFetching = false;
   private syncIntervalId: number | null = null;
   private lastSyncStatus: SyncState['status'] = 'idle';
 
@@ -43,6 +50,7 @@ export default class UniCalendarPlugin extends Plugin {
     this.addSettingTab(new UniCalendarSettingsTab(this.app, this));
 
     this.app.workspace.onLayoutReady(() => {
+      this.loadHolidayDataIntoViews();
       this.triggerSync();
       this.registerSyncInterval();
     });
@@ -78,12 +86,14 @@ export default class UniCalendarPlugin extends Plugin {
     const data = await this.loadData() as Partial<UniCalendarData> | null;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, data?.settings);
     this.eventCache = Object.assign({}, DEFAULT_CACHE, data?.eventCache);
+    this.holidayCache = Object.assign({}, DEFAULT_HOLIDAY_CACHE, data?.holidayCache);
   }
 
   async savePluginData(): Promise<void> {
     await this.saveData({
       settings: this.settings,
       eventCache: this.eventStore.save(),
+      holidayCache: this.holidayCache,
     } as UniCalendarData);
   }
 
@@ -112,6 +122,10 @@ export default class UniCalendarPlugin extends Plugin {
       console.error('[UniCalendar] Sync failed:', err);
       new Notice('同步失败: ' + (err instanceof Error ? err.message : String(err)));
     }
+    // Per D-03: non-blocking holiday data update piggybacking on calendar sync
+    this.checkAndUpdateHolidays().catch(err => {
+      console.error('[UniCalendar] Holiday check error:', err);
+    });
   }
 
   refreshCalendarViews(): void {
@@ -145,6 +159,66 @@ export default class UniCalendarPlugin extends Plugin {
         (leaf.view as CalendarView).updateSyncStatus(state, this.settings.sources.length);
       }
     });
+  }
+
+  private buildHolidayMap(): Map<string, { name: string; isOffDay: boolean }> {
+    const map = new Map<string, { name: string; isOffDay: boolean }>();
+    for (const entries of Object.values(this.holidayCache.years)) {
+      for (const entry of entries) {
+        map.set(entry.date, { name: entry.name, isOffDay: entry.isOffDay });
+      }
+    }
+    return map;
+  }
+
+  private loadHolidayDataIntoViews(): void {
+    const map = this.buildHolidayMap();
+    this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
+      if (leaf.view instanceof CalendarView) {
+        (leaf.view as CalendarView).holidayService.loadDynamicData(map);
+      }
+    });
+  }
+
+  private async checkAndUpdateHolidays(): Promise<void> {
+    // Per Research pitfall 5: prevent concurrent fetches
+    if (this.isHolidayFetching) return;
+
+    const now = Date.now();
+    const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+    // Per D-03: only fetch if >24h since last successful fetch
+    if (this.holidayCache.lastFetchTime !== null &&
+        now - this.holidayCache.lastFetchTime < TWENTY_FOUR_HOURS) {
+      return;
+    }
+
+    this.isHolidayFetching = true;
+    try {
+      const currentYear = new Date().getFullYear();
+      // Per D-05: fetch current year + next year
+      const dataMap = await this.holidayFetcher.fetchYears([currentYear, currentYear + 1]);
+
+      if (dataMap.size > 0) {
+        // Convert Map back to cache structure grouped by year
+        const years: Record<string, HolidayCacheEntry[]> = {};
+        for (const [date, info] of dataMap) {
+          const year = date.substring(0, 4);
+          if (!years[year]) years[year] = [];
+          years[year]!.push({ date, name: info.name, isOffDay: info.isOffDay });
+        }
+        this.holidayCache = { lastFetchTime: now, years };
+        await this.savePluginData();
+        this.loadHolidayDataIntoViews();
+        this.refreshCalendarViews();
+      }
+    } catch (err) {
+      // Per D-07: show Notice on failure, continue with cache/static data
+      console.error('[UniCalendar] Holiday update failed:', err);
+      new Notice('节假日数据更新失败，将使用缓存数据');
+    } finally {
+      this.isHolidayFetching = false;
+    }
   }
 
   private registerSyncInterval(): void {
