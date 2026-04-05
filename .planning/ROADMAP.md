@@ -122,7 +122,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 6. Chinese Lunar Calendar Support | 0/3 | Planning complete | - |
 | 7. 确认并调整农历节气的来源和展示 | 1/1 | Complete | - |
 | 8. 法定假日的动态获取 | 2/2 | Complete | - |
-| 9. Gap Closure | 0/? | Not started | - |
+| 9. Gap Closure | 0/2 | Planning complete | - |
 
 ### Phase 6: Chinese Lunar Calendar Support
 **Goal**: Users see Chinese lunar dates, solar terms (节气), and current-year mainland China public holidays displayed in the calendar views
@@ -185,4 +185,8 @@ Plans:
   3. All-day event end date tests pass (fix test expectations)
   4. Phase 7 has VERIFICATION.md
   5. REQUIREMENTS.md traceability table reflects actual satisfaction status (12 stale checkboxes fixed)
-**Plans:** TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 09-01-PLAN.md -- Code fixes: wire defaultView, leap month "闰" prefix, fix all-day event test expectations
+- [ ] 09-02-PLAN.md -- Documentation: Phase 7 VERIFICATION.md, REQUIREMENTS.md traceability update
