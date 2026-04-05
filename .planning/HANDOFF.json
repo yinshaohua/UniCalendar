@@ -1,0 +1,33 @@
+{
+  "version": "1.0",
+  "timestamp": "2026-04-05T00:50:11.008Z",
+  "phase": "07",
+  "phase_name": "lunar-solar-terms-source-display",
+  "phase_dir": ".planning/phases/07-lunar-solar-terms-source-display",
+  "plan": 1,
+  "task": 2,
+  "total_tasks": 2,
+  "status": "paused",
+  "completed_tasks": [
+    {"id": 1, "name": "Write tests for solarTerm-first priority and canonical festivals (RED phase)", "status": "done", "commit": "ce69f43"},
+    {"id": 2, "name": "Implement solarTerm-first priority, canonical festival map, 除夕 detection, leap month (GREEN phase)", "status": "done", "commit": "42fdaea"}
+  ],
+  "remaining_tasks": [],
+  "blockers": [],
+  "human_actions_pending": [
+    {"action": "Visual check: Navigate calendar to late July 2025 and verify toolbar shows '闰六月'", "context": "Automated test date doesn't trigger leap month path. The isLeap branch is implemented but untested at runtime.", "blocking": false}
+  ],
+  "decisions": [
+    {"decision": "solarTerm > festival > lunarDay display priority", "rationale": "Solar terms like 清明 should never be hidden by festival entries on same/nearby dates", "phase": "07"},
+    {"decision": "9 canonical festivals only via CANONICAL_FESTIVALS map", "rationale": "getLunarFestivals() returns 50+ obscure folk festivals (犬日, 猪日, etc.) that clutter the calendar", "phase": "07"},
+    {"decision": "Dynamic 除夕 detection via next-day check", "rationale": "12th lunar month can be 29 or 30 days; checking if next day is 正月初一 handles both cases", "phase": "07"}
+  ],
+  "uncommitted_files": [
+    ".planning/ROADMAP.md",
+    ".planning/STATE.md",
+    ".planning/phases/07-lunar-solar-terms-source-display/07-RESEARCH.md",
+    "package-lock.json"
+  ],
+  "next_action": "User decides: say 'approved' to mark phase complete, or report issues for gap closure. Then commit uncommitted ROADMAP.md and STATE.md updates.",
+  "context_notes": "Phase 7 execution fully complete. Verification returned human_needed — 5/5 must-haves verified programmatically, 1 item (leap month 闰 prefix) needs visual check in Obsidian. ROADMAP.md and STATE.md have been updated by gsd-tools but not yet committed as part of phase completion flow (waiting for human approval before marking phase complete)."
+}
