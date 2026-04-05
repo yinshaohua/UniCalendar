@@ -104,9 +104,9 @@ describe('IcsSyncAdapter', () => {
     expect(event.id).toBe('test-source::allday-1');
     expect(event.allDay).toBe(true);
     expect(event.title).toBe('Holiday');
-    // All-day events should have date-only start/end
+    // All-day events: adapter normalizes exclusive DTEND to inclusive end date
     expect(event.start).toContain('2026-04-01');
-    expect(event.end).toContain('2026-04-02');
+    expect(event.end).toContain('2026-04-01');
   });
 
   it('expands RRULE within date range and returns correct number of instances', () => {

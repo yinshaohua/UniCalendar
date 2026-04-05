@@ -176,9 +176,10 @@ describe('GoogleSyncAdapter', () => {
         new Date('2026-04-30'),
       );
 
+      // All-day events: adapter normalizes exclusive end date to inclusive
       expect(events[0]!.allDay).toBe(true);
       expect(events[0]!.start).toBe('2026-04-05');
-      expect(events[0]!.end).toBe('2026-04-06');
+      expect(events[0]!.end).toBe('2026-04-05');
     });
 
     it('uses googleEvent.id as uid fallback when iCalUID is absent', async () => {
