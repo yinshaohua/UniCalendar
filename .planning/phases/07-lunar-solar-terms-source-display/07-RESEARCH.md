@@ -312,7 +312,7 @@ All 24 solar terms verified via runtime output. Dates are within expected astron
 
 **All other claims in this research were verified via runtime testing of chinese-days API or codebase inspection.**
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should 清明 display as "festival" or "solar term"?**
    - What we know: 清明 is both a solar term AND a traditional festival/holiday. Currently displays as 'solarTerm' type (since it's not in getLunarFestivals for the Gregorian date).

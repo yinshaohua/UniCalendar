@@ -150,4 +150,4 @@ Plans:
 **Plans:** 1 plan
 
 Plans:
-- [ ] 07-01-PLAN.md -- LunarService TDD: canonical festival map, 除夕 detection, leap month display
+- [x] 07-01-PLAN.md -- LunarService TDD: canonical festival map, 除夕 detection, leap month display

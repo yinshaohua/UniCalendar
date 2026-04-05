@@ -23,3 +23,6 @@ data.json
 
 # Claude AI 编辑器缓存
 .claude/
+
+# git 相关
+**/.gitkeep

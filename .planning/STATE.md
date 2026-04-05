@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: Ready to plan
+status: Executing Phase 07
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-04-04T19:04:48.832Z"
+last_updated: "2026-04-05T00:26:05.074Z"
 progress:
-  total_phases: 6
+  total_phases: 7
   completed_phases: 6
-  total_plans: 20
+  total_plans: 21
   completed_plans: 20
-  percent: 100
+  percent: 95
 ---
 
 # Project State
@@ -20,12 +20,12 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-31)
 
 **Core value:** Users can see all their calendar events from multiple sources in one clean, reliable view inside Obsidian -- especially sources like DingTalk calendar that existing plugins fail to support.
-**Current focus:** Phase 05 — apple-calendar-ui-polish
+**Current focus:** Phase 07 — lunar-solar-terms-source-display
 
 ## Current Position
 
-Phase: 06
-Plan: Not started
+Phase: 07 (lunar-solar-terms-source-display) — EXECUTING
+Plan: 1 of 1
 
 ## Performance Metrics
 
@@ -70,6 +70,7 @@ None yet.
 ### Roadmap Evolution
 
 - Phase 6 added: Chinese Lunar Calendar Support（中国农历、节气、当前年份中国大陆放假日期）
+- Phase 7 added: 确认并调整农历节气的来源和展示
 
 ### Blockers/Concerns
 
