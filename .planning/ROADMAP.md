@@ -167,5 +167,5 @@ Plans:
 **Plans:** 2 plans
 
 Plans:
-- [ ] 08-01-PLAN.md -- HolidayFetcher TDD + HolidayService refactor (dynamic priority + static fallback)
-- [ ] 08-02-PLAN.md -- Plugin lifecycle integration: cache persistence, triggerSync wiring, error handling
+- [x] 08-01-PLAN.md -- HolidayFetcher TDD + HolidayService refactor (dynamic priority + static fallback)
+- [x] 08-02-PLAN.md -- Plugin lifecycle integration: cache persistence, triggerSync wiring, error handling
