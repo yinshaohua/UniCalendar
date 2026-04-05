@@ -109,7 +109,7 @@ Plans:
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -136,3 +136,18 @@ Plans:
 - [x] 06-01-PLAN.md -- LunarService + HolidayService with TDD (chinese-days library integration)
 - [x] 06-02-PLAN.md -- Settings toggles for lunar calendar and holiday display
 - [x] 06-03-PLAN.md -- CalendarView integration: lunar dates, holiday badges, today restyle, visual checkpoint
+
+### Phase 7: 确认并调整农历节气的来源和展示
+**Goal:** Users see only 9 canonical traditional festivals (not 50+ obscure folk festivals), with correct dynamic 除夕 detection and leap month display
+**Requirements**: P7-01, P7-02, P7-03, P7-04, P7-05, P7-06, P7-07
+**Depends on:** Phase 6
+**Success Criteria** (what must be TRUE):
+  1. Only 9 canonical festivals display as festival type (春节, 元宵, 端午, 七夕, 中元, 中秋, 重阳, 腊八, 除夕)
+  2. Obscure folk festivals (犬日, 猪日, 药王诞辰, etc.) are completely removed from display
+  3. 除夕 is detected dynamically regardless of 12th-month length (29 or 30 days)
+  4. Solar terms continue to display correctly
+  5. Leap months show "闰" prefix in toolbar title
+**Plans:** 1 plan
+
+Plans:
+- [ ] 07-01-PLAN.md -- LunarService TDD: canonical festival map, 除夕 detection, leap month display
