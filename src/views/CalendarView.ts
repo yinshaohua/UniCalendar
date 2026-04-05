@@ -324,7 +324,7 @@ const CALENDAR_CSS = `
   align-items: center;
   padding: 4px 8px;
   background: var(--background-secondary);
-  border-radius: 6px;
+  border-radius: 3px;
   cursor: pointer;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -372,7 +372,7 @@ const CALENDAR_CSS = `
   left: 0;
   right: 0;
   min-height: 20px;
-  border-radius: 8px;
+  border-radius: 3px;
   padding: 4px 8px;
   cursor: pointer;
   overflow: hidden;

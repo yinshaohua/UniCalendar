@@ -4,24 +4,30 @@ import { LunarService } from '../../src/lunar/LunarService';
 describe('LunarService', () => {
  const service = new LunarService();
 
- describe('getLunarDayInfo - display priority (D-02)', () => {
-  it('priority: returns festival name for Spring Festival', () => {
-   // 2026-02-17 is 正月初一 (Spring Festival)
-   const info = service.getLunarDayInfo(2026, 1, 17);
-   expect(info.type).toBe('festival');
-   expect(info.text).toBeTruthy();
-   expect(info.text.length).toBeGreaterThan(0);
-  });
-
-  it('priority: returns solar term for Xiaohan', () => {
-   // 2026-01-05 is 小寒 (solar term with no festival on same day)
+ describe('getLunarDayInfo - display priority: solarTerm > festival > lunarDay', () => {
+  it('priority: solar term takes precedence over festival and lunarDay', () => {
+   // 2026-01-05 is 小寒 (solar term)
    const info = service.getLunarDayInfo(2026, 0, 5);
    expect(info.type).toBe('solarTerm');
    expect(info.text).toContain('小寒');
   });
 
-  it('priority: returns lunar day for regular date', () => {
-   // 2026-03-15 is 正月廿七 (no festival, no solar term)
+  it('priority: festival takes precedence over lunarDay', () => {
+   // 2026-02-17 is 春节 (正月初一), not a solar term day
+   const info = service.getLunarDayInfo(2026, 1, 17);
+   expect(info.type).toBe('festival');
+   expect(info.text).toBe('春节');
+  });
+
+  it('priority: 清明 displays as solarTerm not festival', () => {
+   // 2026-04-05 is 清明 (solar term, also a traditional festival — solarTerm wins)
+   const info = service.getLunarDayInfo(2026, 3, 5);
+   expect(info.type).toBe('solarTerm');
+   expect(info.text).toContain('清明');
+  });
+
+  it('priority: regular date shows lunarDay', () => {
+   // 2026-03-15 has no solar term and no canonical festival
    const info = service.getLunarDayInfo(2026, 2, 15);
    expect(info.type).toBe('lunarDay');
    expect(info.text).toBeTruthy();
@@ -29,38 +35,45 @@ describe('LunarService', () => {
  });
 
  describe('getLunarDayInfo - canonical festivals', () => {
-  it('festival: maps Spring Festival (春节) correctly', () => {
+  it('festival: 春节 (正月初一)', () => {
    const info = service.getLunarDayInfo(2026, 1, 17);
    expect(info.type).toBe('festival');
-   expect(info.text).toContain('春节');
+   expect(info.text).toBe('春节');
   });
 
-  it('festival: maps Lantern Festival (元宵) correctly', () => {
+  it('festival: 元宵 (正月十五)', () => {
    // 2026-03-03 is 正月十五
    const info = service.getLunarDayInfo(2026, 2, 3);
    expect(info.type).toBe('festival');
-   expect(info.text).toContain('元宵');
+   expect(info.text).toBe('元宵');
   });
 
-  it('festival: maps Dragon Boat (端午) correctly', () => {
+  it('festival: 端午 (五月初五)', () => {
    // 2026-06-19 is 五月初五
    const info = service.getLunarDayInfo(2026, 5, 19);
    expect(info.type).toBe('festival');
-   expect(info.text).toContain('端午');
+   expect(info.text).toBe('端午');
   });
 
-  it('festival: maps Mid-Autumn (中秋) correctly', () => {
+  it('festival: 中秋 (八月十五)', () => {
    // 2026-09-25 is 八月十五
    const info = service.getLunarDayInfo(2026, 8, 25);
    expect(info.type).toBe('festival');
-   expect(info.text).toContain('中秋');
+   expect(info.text).toBe('中秋');
   });
 
-  it('festival: maps Chong Yang (重阳) correctly', () => {
+  it('festival: 重阳 (九月初九)', () => {
    // 2026-10-18 is 九月初九
    const info = service.getLunarDayInfo(2026, 9, 18);
    expect(info.type).toBe('festival');
-   expect(info.text).toContain('重阳');
+   expect(info.text).toBe('重阳');
+  });
+
+  it('festival: 除夕 (腊月最后一天)', () => {
+   // 2026-02-16 is 腊月廿九 (last day of 12th month)
+   const info = service.getLunarDayInfo(2026, 1, 16);
+   expect(info.type).toBe('festival');
+   expect(info.text).toBe('除夕');
   });
  });
 
@@ -90,9 +103,8 @@ describe('LunarService', () => {
    expect(result.length).toBeGreaterThan(0);
   });
 
-  it('uses 15th of month for dominant month', () => {
+  it('uses 1st of month for lookup', () => {
    const result = service.getLunarMonthForTitle(2026, 0);
-   // January 2026 15th should give a valid lunar month name
    expect(typeof result).toBe('string');
    expect(result).toBeTruthy();
   });
