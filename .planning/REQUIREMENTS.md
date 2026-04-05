@@ -10,32 +10,32 @@ Requirements for initial release. Each maps to roadmap phases.
 ### Calendar Views
 
 - [x] **VIEW-01**: User can see a month view with event dots/snippets on each day
-- [ ] **VIEW-02**: User can see a week view with hourly grid and event blocks
-- [ ] **VIEW-03**: User can see a day view with detailed hourly timeline
-- [ ] **VIEW-04**: User can switch between month, week, and day views
-- [ ] **VIEW-05**: User can navigate to today's date with one click
-- [ ] **VIEW-06**: User can navigate between dates using keyboard arrows
+- [x] **VIEW-02**: User can see a week view with hourly grid and event blocks
+- [x] **VIEW-03**: User can see a day view with detailed hourly timeline
+- [x] **VIEW-04**: User can switch between month, week, and day views
+- [x] **VIEW-05**: User can navigate to today's date with one click
+- [x] **VIEW-06**: User can navigate between dates using keyboard arrows
 
 ### Data Sources
 
 - [x] **SYNC-01**: User can sync events from Google Calendar (read-only via OAuth2)
 - [ ] **SYNC-02**: User can sync events from CalDAV servers (read-only, must work with DingTalk)
-- [ ] **SYNC-03**: User can import events from ICS feed URLs
+- [x] **SYNC-03**: User can import events from ICS feed URLs
 - [x] **SYNC-04**: User sees events from all sources merged into one unified view
 
 ### Event Display
 
-- [ ] **EVNT-01**: User sees events color-coded by their calendar source
-- [ ] **EVNT-02**: User can click an event to see full details (title, time, location, description)
-- [ ] **EVNT-03**: User sees recurring events correctly expanded from RRULE
-- [ ] **EVNT-04**: User sees events displayed in their local timezone regardless of source timezone
+- [x] **EVNT-01**: User sees events color-coded by their calendar source
+- [x] **EVNT-02**: User can click an event to see full details (title, time, location, description)
+- [x] **EVNT-03**: User sees recurring events correctly expanded from RRULE
+- [x] **EVNT-04**: User sees events displayed in their local timezone regardless of source timezone
 - [x] **EVNT-05**: User sees a sync status indicator showing last sync time and sync-in-progress
 
 ### Infrastructure
 
 - [x] **INFR-01**: User can view previously synced events when offline
 - [x] **INFR-02**: User can add, edit, and remove calendar sources in settings
-- [ ] **INFR-03**: User sees an Apple Calendar-inspired UI with clean design, rounded corners, and soft colors
+- [ ] **INFR-03**: User sees an Apple Calendar-inspired UI with clean design, rounded corners, and soft colors (human visual check pending)
 - [x] **INFR-04**: Plugin works on both Obsidian desktop and mobile
 
 ## v2 Requirements
@@ -81,24 +81,24 @@ Which phases cover which requirements. Updated during roadmap creation.
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | VIEW-01 | Phase 2 | Complete |
-| VIEW-02 | Phase 2 | Pending |
-| VIEW-03 | Phase 2 | Pending |
-| VIEW-04 | Phase 2 | Pending |
-| VIEW-05 | Phase 2 | Pending |
-| VIEW-06 | Phase 2 | Pending |
+| VIEW-02 | Phase 2 | Complete |
+| VIEW-03 | Phase 2 | Complete |
+| VIEW-04 | Phase 2 | Complete |
+| VIEW-05 | Phase 2 | Complete |
+| VIEW-06 | Phase 2 | Complete |
 | SYNC-01 | Phase 4 | Complete |
-| SYNC-02 | Phase 3 | Complete |
-| SYNC-03 | Phase 2 | Pending |
+| SYNC-02 | Phase 3 | Partial (human test pending) |
+| SYNC-03 | Phase 2 | Complete |
 | SYNC-04 | Phase 4 | Complete |
-| EVNT-01 | Phase 2 | Pending |
-| EVNT-02 | Phase 2 | Pending |
-| EVNT-03 | Phase 2 | Pending |
-| EVNT-04 | Phase 2 | Pending |
+| EVNT-01 | Phase 2 | Complete |
+| EVNT-02 | Phase 2 | Complete |
+| EVNT-03 | Phase 2 | Complete |
+| EVNT-04 | Phase 2 | Complete |
 | EVNT-05 | Phase 1 | Complete |
 | INFR-01 | Phase 1 | Complete |
 | INFR-02 | Phase 1 | Complete |
-| INFR-03 | Phase 5 | Pending |
-| INFR-04 | Phase 1 | Pending |
+| INFR-03 | Phase 5 | Partial (human visual check pending) |
+| INFR-04 | Phase 1 | Complete |
 
 **Coverage:**
 - v1 requirements: 19 total
@@ -107,4 +107,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-03-31*
-*Last updated: 2026-03-31 after roadmap creation*
+*Last updated: 2026-04-05 after v1.0 milestone audit gap closure*

@@ -18,6 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] **Phase 4: Google Calendar and Multi-Source Unification** - OAuth2 Google sync and unified multi-source event merging
 - [ ] **Phase 5: Apple Calendar UI Polish** - Visual refinement to Apple Calendar-inspired design with clean aesthetics
 - [ ] **Phase 6: Chinese Lunar Calendar Support** - 支持中国农历、节气、当前年份中国大陆放假日期
+- [ ] **Phase 9: Gap Closure** - Wire defaultView setting, fix leap month display, fix failing tests, update traceability
 
 ## Phase Details
 
@@ -119,6 +120,9 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Google Calendar and Multi-Source Unification | 1/3 | In Progress|  |
 | 5. Apple Calendar UI Polish | 2/3 | In Progress | - |
 | 6. Chinese Lunar Calendar Support | 0/3 | Planning complete | - |
+| 7. 确认并调整农历节气的来源和展示 | 1/1 | Complete | - |
+| 8. 法定假日的动态获取 | 2/2 | Complete | - |
+| 9. Gap Closure | 0/? | Not started | - |
 
 ### Phase 6: Chinese Lunar Calendar Support
 **Goal**: Users see Chinese lunar dates, solar terms (节气), and current-year mainland China public holidays displayed in the calendar views
@@ -169,3 +173,16 @@ Plans:
 Plans:
 - [x] 08-01-PLAN.md -- HolidayFetcher TDD + HolidayService refactor (dynamic priority + static fallback)
 - [x] 08-02-PLAN.md -- Plugin lifecycle integration: cache persistence, triggerSync wiring, error handling
+
+### Phase 9: Gap Closure
+**Goal:** Close all code-level gaps identified by v1.0 milestone audit — wire defaultView setting, fix leap month display, fix failing tests, verify Phase 7, and update stale traceability
+**Depends on:** Phase 8
+**Requirements:** VIEW-02, VIEW-03, VIEW-04, VIEW-05, VIEW-06, SYNC-02, SYNC-03, EVNT-01, EVNT-02, EVNT-03, EVNT-04, INFR-03, INFR-04
+**Gap Closure:** Closes gaps from v1.0-MILESTONE-AUDIT.md
+**Success Criteria** (what must be TRUE):
+  1. CalendarView reads `settings.defaultView` on open instead of hardcoding 'month'
+  2. `getLunarMonthForTitle()` prepends "闰" for leap months
+  3. All-day event end date tests pass (fix test expectations)
+  4. Phase 7 has VERIFICATION.md
+  5. REQUIREMENTS.md traceability table reflects actual satisfaction status (12 stale checkboxes fixed)
+**Plans:** TBD
