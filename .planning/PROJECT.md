@@ -25,6 +25,7 @@ Users can see all their calendar events from multiple sources in one clean, reli
 - ✓ Chinese statutory holiday/workday indicators (休/班) — Validated in Phase 6
 - ✓ Lunar/holiday display toggles in settings — Validated in Phase 6
 - ✓ Apple Calendar-inspired UI (clean, rounded corners, soft colors) — Validated in Phase 5
+- ✓ Dynamic public holiday data with cache and static fallback — Validated in Phase 8
 
 ### Active
 
@@ -88,4 +89,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-04-04 after Phase 5 completion*
+*Last updated: 2026-04-05 after Phase 8 completion*
