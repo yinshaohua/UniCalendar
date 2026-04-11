@@ -631,7 +631,7 @@ export class CalendarView extends ItemView {
   }
 
   getDisplayText(): string {
-    return 'UniCalendar';
+    return '统一日历';
   }
 
   getIcon(): string {

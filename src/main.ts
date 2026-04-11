@@ -37,7 +37,7 @@ export default class UniCalendarPlugin extends Plugin {
 
     this.registerView(VIEW_TYPE_CALENDAR, (leaf) => new CalendarView(leaf, this));
 
-    this.addRibbonIcon('calendar', 'UniCalendar: 打开日历', () => {
+    this.addRibbonIcon('calendar', '统一日历: 打开日历', () => {
       this.activateView();
     });
 
