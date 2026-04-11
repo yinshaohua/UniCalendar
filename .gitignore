@@ -24,5 +24,8 @@ data.json
 # Claude AI 编辑器缓存
 .claude/
 
+# GSD 规划目录
+.planning/
+
 # git 相关
 **/.gitkeep
