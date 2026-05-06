@@ -412,17 +412,17 @@ class AddSourceModal extends Modal {
 
     if (type === 'google') {
       new Setting(contentEl)
-        .setName('Client ID')
-        .setDesc('Google Cloud Console 中的 OAuth2 Client ID')
+        .setName('谷歌日历客户端编号')
+        .setDesc('填写账号控制台中的客户端编号')
         .addText(text => text
-          .setPlaceholder('xxxx.apps.googleusercontent.com')
+          .setPlaceholder('请输入客户端编号')
           .onChange(value => { clientId = value; }));
 
       new Setting(contentEl)
-        .setName('Client secret')
-        .setDesc('Google Cloud Console 中的 OAuth2 Client Secret')
+        .setName('谷歌日历客户端密钥')
+        .setDesc('填写账号控制台中的客户端密钥')
         .addText(text => {
-          text.setPlaceholder('GOCSPX-xxxx')
+          text.setPlaceholder('请输入客户端密钥')
             .onChange(value => { clientSecret = value; });
           text.inputEl.type = 'password';
         });
@@ -436,13 +436,13 @@ class AddSourceModal extends Modal {
       new Setting(contentEl)
         .setName('用户名')
         .addText(text => text
-          .setPlaceholder('username')
+          .setPlaceholder('请输入用户名')
           .onChange(value => { username = value; }));
 
       new Setting(contentEl)
         .setName('密码')
         .addText(text => {
-          text.setPlaceholder('password')
+          text.setPlaceholder('请输入密码')
             .onChange(value => { password = value; });
           text.inputEl.type = 'password';
         });
@@ -492,7 +492,7 @@ class AddSourceModal extends Modal {
     } else if (type === 'ics') {
       new Setting(contentEl)
         .setName('订阅链接')
-        .setDesc('ICS 或 iCal 日历订阅地址')
+        .setDesc('订阅地址支持网络日历订阅格式')
         .addText(text => text
           .setPlaceholder('https://example.com/calendar.ics')
           .onChange(value => { feedUrl = value; }));
@@ -525,7 +525,7 @@ class AddSourceModal extends Modal {
 
         if (type === 'google') {
           if (!clientId.trim() || !clientSecret.trim()) {
-            new Notice('请输入 Client ID 和 Client Secret');
+            new Notice('请输入客户端编号和客户端密钥');
             return;
           }
           source.google = {
@@ -534,7 +534,7 @@ class AddSourceModal extends Modal {
           };
         } else if (type === 'caldav') {
           if (!serverUrl.trim()) {
-            new Notice('请输入 CalDAV 服务器地址');
+            new Notice('请输入服务器地址');
             return;
           }
           source.caldav = {
@@ -547,7 +547,7 @@ class AddSourceModal extends Modal {
           };
         } else if (type === 'ics') {
           if (!feedUrl.trim()) {
-            new Notice('请输入 ICS 订阅链接');
+            new Notice('请输入订阅链接');
             return;
           }
           source.ics = { feedUrl: feedUrl.trim() };
@@ -559,9 +559,9 @@ class AddSourceModal extends Modal {
         this.onDone();
 
         if (type === 'google') {
-          new Notice('已添加 Google 日历源。请编辑此源，完成授权并选择日历。');
+          new Notice('已添加日历源。请编辑此源，完成授权并选择日历。');
         } else if (type === 'caldav' && !calendarPath.trim()) {
-          new Notice('已添加 CalDAV 日历源。请编辑此源，发现并选择日历。');
+          new Notice('已添加日历源。请编辑此源，发现并选择日历。');
         }
       })();
     });
@@ -651,14 +651,14 @@ class EditSourceModal extends Modal {
     if (source.type === 'google') {
       new Setting(contentEl)
         .setName('Google 客户端 ID')
-        .setDesc('Google Cloud Console 中的 OAuth2 客户端 ID')
+        .setDesc('账号控制台中的客户端编号')
         .addText(text => text
           .setValue(clientId)
           .onChange(value => { clientId = value; }));
 
       new Setting(contentEl)
         .setName('Google 客户端密钥')
-        .setDesc('Google Cloud Console 中的 OAuth2 客户端密钥')
+        .setDesc('账号控制台中的客户端密钥')
         .addText(text => {
           text.setValue(clientSecret)
             .onChange(value => { clientSecret = value; });
@@ -673,7 +673,7 @@ class EditSourceModal extends Modal {
         const cid = clientId.trim() || source.google?.clientId || '';
         const cs = clientSecret.trim() || source.google?.clientSecret || '';
         if (!cid || !cs) {
-          new Notice('请先填写 Google 客户端 ID 和客户端密钥');
+          new Notice('请先填写客户端编号和客户端密钥');
           return;
         }
 
@@ -686,7 +686,7 @@ class EditSourceModal extends Modal {
           const verifier = authHelper.generateCodeVerifier();
           const { url } = await authHelper.buildAuthUrl(cid, redirectUri, verifier, source.id);
           window.open(url);
-          new Notice('请在浏览器中完成 Google 授权…');
+          new Notice('请在浏览器中完成授权…');
 
           const code = await oauthServer.codePromise;
           const tokens = await authHelper.exchangeCode(code, cid, cs, redirectUri, verifier);
@@ -736,7 +736,7 @@ class EditSourceModal extends Modal {
           const adapter = new GoogleSyncAdapter(authHelper);
           const calendars = await adapter.discoverCalendars(token);
           if (calendars.length === 0) {
-            new Notice('未发现任何 Google 日历');
+            new Notice('未发现任何日历');
             return;
           }
           const preSelected = (source.google.selectedCalendars ?? []).map(c => c.id);
@@ -787,14 +787,14 @@ class EditSourceModal extends Modal {
         if (diagnosticVisible) {
           const diagnosticSetting = new Setting(authSection)
             .setName('Google 日历诊断详情')
-            .setDesc('复制这段信息发给我，可以更快判断是授权失效、配置错误、网络问题，还是 Google 服务异常。')
+            .setDesc('复制这段信息发给我，可以更快判断是授权失效、配置错误、网络问题，还是服务异常。')
             .addButton(btn => btn
               .setButtonText('复制诊断信息')
               .onClick(() => {
                 void (async () => {
                   try {
                     await copyTextToClipboard(diagnosticText);
-                    new Notice('已复制 Google 诊断信息');
+                    new Notice('已复制诊断信息');
                   } catch (err) {
                     console.error('[UniCalendar] Failed to copy Google diagnostic text', err);
                     new Notice('复制失败，请手动选择下方诊断文本');
@@ -811,7 +811,7 @@ class EditSourceModal extends Modal {
       } else {
         new Setting(authSection)
           .setName('Google 日历授权')
-          .setDesc('点击授权按钮，在浏览器中完成 Google 账号授权')
+          .setDesc('点击授权按钮，在浏览器中完成账号授权')
           .addButton(btn => btn
             .setButtonText('授权')
             .setCta()
@@ -842,7 +842,7 @@ class EditSourceModal extends Modal {
 
       const editDiscoveryContainer = contentEl.createDiv();
       new Setting(editDiscoveryContainer)
-        .setName('自动发现 CalDAV 日历')
+        .setName('自动发现网络日历')
         .addButton(btn => btn
           .setButtonText('发现日历')
           .onClick(() => {
@@ -894,7 +894,7 @@ class EditSourceModal extends Modal {
     } else if (source.type === 'ics') {
       new Setting(contentEl)
         .setName('订阅链接')
-        .setDesc('ICS 或 iCal 日历订阅地址')
+        .setDesc('订阅地址支持网络日历订阅格式')
         .addText(text => text
           .setValue(feedUrl)
           .onChange(value => { feedUrl = value; }));
