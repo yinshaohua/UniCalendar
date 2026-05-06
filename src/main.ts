@@ -1,4 +1,4 @@
-import { Notice, Plugin, WorkspaceLeaf } from 'obsidian';
+import { App, Notice, Plugin, WorkspaceLeaf } from 'obsidian';
 import {
   UniCalendarSettings,
   UniCalendarData,
@@ -38,20 +38,22 @@ export default class UniCalendarPlugin extends Plugin {
     this.registerView(VIEW_TYPE_CALENDAR, (leaf) => new CalendarView(leaf, this));
 
     this.addRibbonIcon('calendar', '统一日历: 打开日历', () => {
-      this.activateView();
+      void this.activateView();
     });
 
     this.addCommand({
       id: 'open-calendar',
       name: '打开日历',
-      callback: () => this.activateView(),
+      callback: () => {
+        void this.activateView();
+      },
     });
 
     this.addSettingTab(new UniCalendarSettingsTab(this.app, this));
 
     this.app.workspace.onLayoutReady(() => {
       this.loadHolidayDataIntoViews();
-      this.triggerSync();
+      void this.triggerSync();
       this.registerSyncInterval();
     });
   }
@@ -67,7 +69,7 @@ export default class UniCalendarPlugin extends Plugin {
     if (leaves.length > 0 && leaves[0]) {
       this.app.workspace.revealLeaf(leaves[0]);
       if (this.settings.sources.length > 0) {
-        this.triggerSync();
+        void this.triggerSync();
       }
       return;
     }
@@ -77,16 +79,17 @@ export default class UniCalendarPlugin extends Plugin {
       await leaf.setViewState({ type: VIEW_TYPE_CALENDAR, active: true });
       this.app.workspace.revealLeaf(leaf);
       if (this.settings.sources.length > 0) {
-        this.triggerSync();
+        void this.triggerSync();
       }
     }
   }
 
   async loadPluginData(): Promise<void> {
-    const data = await this.loadData() as Partial<UniCalendarData> | null;
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, data?.settings);
-    this.eventCache = Object.assign({}, DEFAULT_CACHE, data?.eventCache);
-    this.holidayCache = Object.assign({}, DEFAULT_HOLIDAY_CACHE, data?.holidayCache);
+    const data = await this.loadData();
+    const typedData = data as Partial<UniCalendarData> | null;
+    this.settings = Object.assign({}, DEFAULT_SETTINGS, typedData?.settings);
+    this.eventCache = Object.assign({}, DEFAULT_CACHE, typedData?.eventCache);
+    this.holidayCache = Object.assign({}, DEFAULT_HOLIDAY_CACHE, typedData?.holidayCache);
   }
 
   async savePluginData(): Promise<void> {
@@ -103,13 +106,12 @@ export default class UniCalendarPlugin extends Plugin {
     // Update all open calendar views
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
-        const view = leaf.view as CalendarView;
-        view.updateEmptyState(this.settings.sources.length > 0);
-        view.rerender();
+        leaf.view.updateEmptyState(this.settings.sources.length > 0);
+        leaf.view.rerender();
       }
     });
     // Re-sync after settings change
-    this.triggerSync();
+    void this.triggerSync();
   }
 
   async triggerSync(): Promise<void> {
@@ -140,10 +142,16 @@ export default class UniCalendarPlugin extends Plugin {
   }
 
   openSettings(): void {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this.app as any).setting.open();
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (this.app as any).setting.openTabById(this.manifest.id);
+    type AppWithSettings = App & {
+      setting: {
+        open: () => void;
+        openTabById: (id: string) => void;
+      };
+    };
+
+    const appWithSettings = this.app as AppWithSettings;
+    appWithSettings.setting.open();
+    appWithSettings.setting.openTabById(this.manifest.id);
   }
 
   private onSyncStateChange(state: SyncState): void {
@@ -226,7 +234,7 @@ export default class UniCalendarPlugin extends Plugin {
       window.clearInterval(this.syncIntervalId);
     }
     this.syncIntervalId = window.setInterval(() => {
-      this.triggerSync();
+      void this.triggerSync();
     }, this.settings.syncInterval * 60 * 1000);
     this.registerInterval(this.syncIntervalId);
   }

@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Platform, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { CalendarSource, GoogleSyncDiagnostic, UniCalendarSettings, SOURCE_COLORS, getNextColor, RECOMMENDED_PALETTE, formatGoogleTokenFingerprint } from '../models/types';
+import { CalendarSource, GoogleSyncDiagnostic, UniCalendarSettings, getNextColor, RECOMMENDED_PALETTE, formatGoogleTokenFingerprint } from '../models/types';
 import { CalDavSyncAdapter, DiscoveredCalendar } from '../sync/CalDavSyncAdapter';
 import { IcsSyncAdapter } from '../sync/IcsSyncAdapter';
 import { GoogleAuthHelper, GoogleTokenError } from '../sync/GoogleAuthHelper';

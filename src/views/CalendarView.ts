@@ -1,4 +1,4 @@
-import { ItemView, WorkspaceLeaf, Notice, setIcon } from 'obsidian';
+import { ItemView, WorkspaceLeaf, setIcon } from 'obsidian';
 import { CalendarEvent, SyncState } from '../models/types';
 import { EventStore } from '../store/EventStore';
 import { EventDetailModal } from './EventDetailModal';
@@ -590,7 +590,6 @@ const CALENDAR_CSS = `
 
 `;
 
-const DAY_NAMES = ['日', '一', '二', '三', '四', '五', '六'];
 const DAY_FULL_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const MONTH_NAMES = [
   '1月', '2月', '3月', '4月', '5月', '6月',
