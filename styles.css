@@ -1,8 +1,165 @@
 /*
-
 This CSS file will be included with your plugin, and
 available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
 */
+
+.uni-calendar-source-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--size-4-3);
+  margin-bottom: var(--size-4-2);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  background: var(--background-secondary);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  transition: box-shadow 0.15s ease;
+}
+
+.uni-calendar-source-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+.uni-calendar-source-card .setting-item {
+  border-top: none;
+  padding: 0;
+  margin: 0;
+}
+
+.uni-calendar-source-info {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+}
+
+.uni-calendar-color-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.uni-calendar-source-name {
+  font-weight: 600;
+}
+
+.uni-calendar-source-type {
+  font-size: 0.7em;
+  color: var(--text-muted);
+  margin-left: var(--size-4-2);
+  text-transform: uppercase;
+  background: var(--background-modifier-border);
+  padding: 2px 6px;
+  border-radius: var(--radius-s);
+}
+
+.uni-calendar-source-status {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.uni-calendar-source-status.is-error {
+  color: var(--text-error);
+}
+
+.uni-calendar-source-status.is-warning {
+  color: var(--color-orange);
+}
+
+.uni-calendar-source-status.is-strong {
+  font-weight: 600;
+}
+
+.uni-calendar-palette-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+  margin-bottom: 12px;
+}
+
+.uni-calendar-palette-swatch {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 2px solid transparent;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  box-sizing: border-box;
+}
+
+.uni-calendar-palette-swatch:hover {
+  transform: scale(1.15);
+  border-color: var(--text-muted);
+}
+
+.uni-calendar-palette-swatch.is-selected {
+  border-color: var(--interactive-accent);
+}
+
+.uni-calendar-selection-label {
+  padding-top: 0;
+}
+
+.uni-calendar-selection-label-text {
+  font-size: var(--font-ui-small);
+  color: var(--text-muted);
+}
+
+.uni-calendar-modal-button-grid {
+  display: flex;
+  gap: var(--size-4-3);
+  flex-wrap: wrap;
+}
+
+.uni-calendar-modal-button {
+  flex: 1;
+  min-width: 120px;
+}
+
+.uni-calendar-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--size-4-2);
+  margin-top: var(--size-4-4);
+}
+
+.uni-calendar-google-diagnostic {
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin: 0 0 12px 0;
+  padding: 12px;
+  border-radius: var(--radius-s);
+  background: var(--background-secondary-alt);
+  border: 1px solid var(--background-modifier-border);
+  font-size: var(--font-ui-small);
+  user-select: text;
+}
+
+.uni-calendar-picker-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: var(--radius-s);
+  margin-bottom: 4px;
+}
+
+.uni-calendar-picker-item:hover {
+  background: var(--background-modifier-hover);
+}
+
+.uni-calendar-picker-checkbox {
+  margin-right: 8px;
+}
+
+.uni-calendar-picker-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: var(--size-4-3);
+}
+
+.uni-calendar-picker-color-dot {
+  margin-left: 8px;
+}

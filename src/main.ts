@@ -67,7 +67,7 @@ export default class UniCalendarPlugin extends Plugin {
   async activateView(): Promise<void> {
     const leaves = this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR);
     if (leaves.length > 0 && leaves[0]) {
-      this.app.workspace.revealLeaf(leaves[0]);
+      void this.app.workspace.revealLeaf(leaves[0]);
       if (this.settings.sources.length > 0) {
         void this.triggerSync();
       }
@@ -77,7 +77,7 @@ export default class UniCalendarPlugin extends Plugin {
     const leaf: WorkspaceLeaf | null = this.app.workspace.getLeaf('tab');
     if (leaf) {
       await leaf.setViewState({ type: VIEW_TYPE_CALENDAR, active: true });
-      this.app.workspace.revealLeaf(leaf);
+      void this.app.workspace.revealLeaf(leaf);
       if (this.settings.sources.length > 0) {
         void this.triggerSync();
       }
@@ -85,19 +85,20 @@ export default class UniCalendarPlugin extends Plugin {
   }
 
   async loadPluginData(): Promise<void> {
-    const data = await this.loadData();
-    const typedData = data as Partial<UniCalendarData> | null;
+    const rawData: unknown = await this.loadData();
+    const typedData = rawData as Partial<UniCalendarData> | null;
     this.settings = Object.assign({}, DEFAULT_SETTINGS, typedData?.settings);
     this.eventCache = Object.assign({}, DEFAULT_CACHE, typedData?.eventCache);
     this.holidayCache = Object.assign({}, DEFAULT_HOLIDAY_CACHE, typedData?.holidayCache);
   }
 
   async savePluginData(): Promise<void> {
-    await this.saveData({
+    const data: UniCalendarData = {
       settings: this.settings,
       eventCache: this.eventStore.save(),
       holidayCache: this.holidayCache,
-    } as UniCalendarData);
+    };
+    await this.saveData(data);
   }
 
   async saveSettings(): Promise<void> {
@@ -133,7 +134,7 @@ export default class UniCalendarPlugin extends Plugin {
   refreshCalendarViews(): void {
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
-        const view = leaf.view as CalendarView;
+        const view = leaf.view;
         const state = this.syncManager.getState();
         view.updateSyncStatus(state, this.settings.sources.length);
         view.rerender();
@@ -164,7 +165,7 @@ export default class UniCalendarPlugin extends Plugin {
 
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
-        (leaf.view as CalendarView).updateSyncStatus(state, this.settings.sources.length);
+        leaf.view.updateSyncStatus(state, this.settings.sources.length);
       }
     });
   }
@@ -183,7 +184,7 @@ export default class UniCalendarPlugin extends Plugin {
     const map = this.buildHolidayMap();
     this.app.workspace.getLeavesOfType(VIEW_TYPE_CALENDAR).forEach(leaf => {
       if (leaf.view instanceof CalendarView) {
-        (leaf.view as CalendarView).holidayService.loadDynamicData(map);
+        leaf.view.holidayService.loadDynamicData(map);
       }
     });
   }
@@ -212,8 +213,8 @@ export default class UniCalendarPlugin extends Plugin {
         const years: Record<string, HolidayCacheEntry[]> = {};
         for (const [date, info] of dataMap) {
           const year = date.substring(0, 4);
-          if (!years[year]) years[year] = [];
-          years[year]!.push({ date, name: info.name, isOffDay: info.isOffDay });
+          const yearEntries = years[year] ?? (years[year] = []);
+          yearEntries.push({ date, name: info.name, isOffDay: info.isOffDay });
         }
         this.holidayCache = { lastFetchTime: now, years };
         await this.savePluginData();

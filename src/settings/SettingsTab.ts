@@ -24,7 +24,7 @@ export function formatGoogleSelectionSummary(source: CalendarSource): string | n
   const selCals = source.google.selectedCalendars;
   if (selCals && selCals.length > 0) {
     const names = selCals.map(c => c.name).join(', ');
-    return `已选日历 (${selCals.length}): ${names}`;
+    return `已选日历（${selCals.length}）: ${names}`;
   }
 
   if (source.google.calendarId) {
@@ -92,79 +92,54 @@ export function formatGoogleDiagnosticText(source: CalendarSource): string {
   return formatGoogleDiagnosticLines(source).join('\n');
 }
 
-const CARD_STYLES = `
-.uni-calendar-source-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: var(--size-4-3);
-  margin-bottom: var(--size-4-2);
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  background: var(--background-secondary);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  transition: box-shadow 0.15s ease;
+function addSettingHeading(containerEl: HTMLElement, title: string): void {
+  new Setting(containerEl)
+    .setName(title)
+    .setHeading();
 }
-.uni-calendar-source-card:hover {
-  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+
+function createStatusLine(
+  containerEl: HTMLElement,
+  text: string,
+  classNames?: string[],
+): void {
+  const el = containerEl.createEl('div', {
+    text,
+    cls: 'uni-calendar-source-status',
+  });
+
+  classNames?.forEach(className => el.addClass(className));
 }
-.uni-calendar-source-card .setting-item {
-  border-top: none;
-  padding: 0;
-  margin: 0;
+
+function createLabelRow(containerEl: HTMLElement): HTMLElement {
+  return containerEl.createDiv({
+    cls: 'setting-item uni-calendar-selection-label',
+  });
 }
-.uni-calendar-source-info {
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-2);
+
+function renderSelectionLabel(
+  containerEl: HTMLElement,
+  text: string,
+): void {
+  containerEl.empty();
+  if (!text) {
+    return;
+  }
+
+  containerEl.createEl('span', {
+    text,
+    cls: 'uni-calendar-selection-label-text',
+  });
 }
-.uni-calendar-color-dot {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
+
+async function copyTextToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard?.writeText) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+
+  throw new Error('当前环境不支持剪贴板写入');
 }
-.uni-calendar-source-name {
-  font-weight: 600;
-}
-.uni-calendar-source-type {
-  font-size: 0.7em;
-  color: var(--text-muted);
-  margin-left: var(--size-4-2);
-  text-transform: uppercase;
-  background: var(--background-modifier-border);
-  padding: 2px 6px;
-  border-radius: var(--radius-s);
-}
-.uni-calendar-source-status {
-  font-size: var(--font-ui-small);
-  color: var(--text-muted);
-}
-.uni-calendar-palette-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-  margin-top: 8px;
-}
-.uni-calendar-palette-swatch {
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  border: 2px solid transparent;
-  transition: border-color 0.15s ease, transform 0.15s ease;
-  box-sizing: border-box;
-}
-.uni-calendar-palette-swatch:hover {
-  transform: scale(1.15);
-  border-color: var(--text-muted);
-}
-.uni-calendar-palette-swatch.is-selected {
-  border-color: var(--interactive-accent);
-}
-`;
 
 export class UniCalendarSettingsTab extends PluginSettingTab {
   plugin: UniCalendarPlugin;
@@ -178,11 +153,7 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
     const { containerEl } = this;
     containerEl.empty();
 
-    // Inject card styles
-    containerEl.createEl('style', { text: CARD_STYLES });
-
-    // Section 1: General Settings
-    containerEl.createEl('h2', { text: '通用设置' });
+    addSettingHeading(containerEl, '通用设置');
 
     new Setting(containerEl)
       .setName('同步间隔')
@@ -211,8 +182,8 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
       .setDesc('控制月视图中事件过多时的显示方式')
       .addDropdown(dropdown => dropdown
         .addOptions({
-          'expand': '显示全部事件 (单元格自动扩展)',
-          'collapse': '最多显示3个, 超出折叠',
+          expand: '显示全部事件（单元格自动扩展）',
+          collapse: '最多显示 3 个，超出折叠',
         })
         .setValue(this.plugin.settings.monthOverflowMode)
         .onChange(async (value) => {
@@ -220,12 +191,11 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    // Section 2: Calendar Sources
-    containerEl.createEl('h2', { text: '日历源' });
+    addSettingHeading(containerEl, '日历源');
 
     if (this.plugin.settings.sources.length === 0) {
       containerEl.createEl('p', {
-        text: '未配置日历源，请在下方添加。',
+        text: '尚未配置日历源，请在下方添加。',
         cls: 'setting-item-description',
       });
     }
@@ -233,7 +203,6 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
     for (const source of this.plugin.settings.sources) {
       const card = containerEl.createDiv({ cls: 'uni-calendar-source-card' });
 
-      // Left side: info
       const info = card.createDiv({ cls: 'uni-calendar-source-info' });
       info.createSpan({
         cls: 'uni-calendar-color-dot',
@@ -243,75 +212,40 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
       const detailsDiv = info.createDiv();
       detailsDiv.createEl('span', { text: source.name, cls: 'uni-calendar-source-name' });
       detailsDiv.createEl('span', { text: source.type.toUpperCase(), cls: 'uni-calendar-source-type' });
-      detailsDiv.createEl('div', {
-        text: source.enabled ? '已启用' : '已禁用',
-        cls: 'uni-calendar-source-status',
-      });
+      createStatusLine(detailsDiv, source.enabled ? '已启用' : '已禁用');
 
-      // Google authorization status
       if (source.type === 'google') {
         if (!source.google?.accessToken) {
-          detailsDiv.createEl('div', {
-            text: '未授权 - 请点击编辑进行授权',
-            cls: 'uni-calendar-source-status',
-            attr: { style: 'color: var(--text-error);' },
-          });
+          createStatusLine(detailsDiv, '未授权，请点击编辑完成授权', ['is-error']);
         } else if (source.google.lastSyncError?.kind === 'invalid_grant') {
-          detailsDiv.createEl('div', {
-            text: '授权失效 - 请重新授权',
-            cls: 'uni-calendar-source-status',
-            attr: { style: 'color: var(--text-error); font-weight: 600;' },
-          });
+          createStatusLine(detailsDiv, '授权已失效，请重新授权', ['is-error', 'is-strong']);
         } else {
-          detailsDiv.createEl('div', {
-            text: '已授权',
-            cls: 'uni-calendar-source-status',
-          });
+          createStatusLine(detailsDiv, '已授权');
         }
 
         const selectionSummary = formatGoogleSelectionSummary(source);
         if (selectionSummary) {
-          detailsDiv.createEl('div', {
-            text: selectionSummary,
-            cls: 'uni-calendar-source-status',
-          });
+          createStatusLine(detailsDiv, selectionSummary);
         } else {
-          detailsDiv.createEl('div', {
-            text: '未选择日历 - 无法同步',
-            cls: 'uni-calendar-source-status',
-            attr: { style: 'color: var(--color-orange); font-weight: 600;' },
-          });
+          createStatusLine(detailsDiv, '未选择日历，无法同步', ['is-warning', 'is-strong']);
         }
 
         const errorSummary = formatGoogleErrorSummary(source);
         if (errorSummary) {
-          detailsDiv.createEl('div', {
-            text: errorSummary,
-            cls: 'uni-calendar-source-status',
-            attr: { style: 'color: var(--text-error);' },
-          });
+          createStatusLine(detailsDiv, errorSummary, ['is-error']);
         }
       }
 
-      // CalDAV calendar status
       if (source.type === 'caldav') {
         const selCals = source.caldav?.selectedCalendars;
         if (selCals && selCals.length > 0) {
           const names = selCals.map(c => c.displayName).join(', ');
-          detailsDiv.createEl('div', {
-            text: `已选日历 (${selCals.length}): ${names}`,
-            cls: 'uni-calendar-source-status',
-          });
+          createStatusLine(detailsDiv, `已选日历（${selCals.length}）: ${names}`);
         } else if (!source.caldav?.calendarPath) {
-          detailsDiv.createEl('div', {
-            text: '未选择日历 - 无法同步',
-            cls: 'uni-calendar-source-status',
-            attr: { style: 'color: var(--color-orange); font-weight: 600;' },
-          });
+          createStatusLine(detailsDiv, '未选择日历，无法同步', ['is-warning', 'is-strong']);
         }
       }
 
-      // Right side: edit/delete buttons
       new Setting(card)
         .addExtraButton(btn => btn
           .setIcon('pencil')
@@ -322,14 +256,15 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
         .addExtraButton(btn => btn
           .setIcon('trash')
           .setTooltip('删除')
-          .onClick(async () => {
-            this.plugin.settings.sources = this.plugin.settings.sources.filter(s => s.id !== source.id);
-            await this.plugin.saveSettings();
-            this.display();
+          .onClick(() => {
+            void (async () => {
+              this.plugin.settings.sources = this.plugin.settings.sources.filter(s => s.id !== source.id);
+              await this.plugin.saveSettings();
+              this.display();
+            })();
           }));
     }
 
-    // Add source button
     new Setting(containerEl)
       .addButton(btn => btn
         .setButtonText('添加日历源')
@@ -338,8 +273,7 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
           new AddSourceModal(this.app, this.plugin, () => this.display()).open();
         }));
 
-    // Section 3: Lunar Calendar & Holidays
-    containerEl.createEl('h2', { text: '农历与节假日' });
+    addSettingHeading(containerEl, '农历与节假日');
 
     new Setting(containerEl)
       .setName('显示农历')
@@ -392,19 +326,18 @@ class AddSourceModal extends Modal {
 
     contentEl.createEl('p', { text: '选择要添加的日历源类型：' });
 
-    const buttonContainer = contentEl.createDiv({ attr: { style: 'display: flex; gap: var(--size-4-3); flex-wrap: wrap;' } });
+    const buttonContainer = contentEl.createDiv({ cls: 'uni-calendar-modal-button-grid' });
 
-    const types: Array<{ type: 'google' | 'caldav' | 'ics'; label: string; desc: string }> = [
-      { type: 'google', label: 'Google 日历', desc: '通过 API 同步 Google 日历' },
-      { type: 'caldav', label: 'CalDAV 日历', desc: 'CalDAV 服务器（Nextcloud、iCloud 等）' },
-      { type: 'ics', label: 'ICS 订阅', desc: '订阅 ICS/iCal 日历链接' },
+    const types: Array<{ type: 'google' | 'caldav' | 'ics'; label: string }> = [
+      { type: 'google', label: 'Google 日历' },
+      { type: 'caldav', label: 'CalDAV 日历' },
+      { type: 'ics', label: 'ICS 订阅' },
     ];
 
     for (const t of types) {
       const btn = buttonContainer.createEl('button', {
         text: t.label,
-        cls: 'mod-cta',
-        attr: { style: 'flex: 1; min-width: 120px;' },
+        cls: 'mod-cta uni-calendar-modal-button',
       });
       btn.addEventListener('click', () => {
         this.selectedType = t.type;
@@ -418,18 +351,15 @@ class AddSourceModal extends Modal {
 
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl('style', { text: CARD_STYLES });
 
     const type = this.selectedType;
     const typeLabels = { google: 'Google 日历', caldav: 'CalDAV', ics: 'ICS 订阅' };
     this.titleEl.setText(`添加${typeLabels[type]}源`);
 
-    // Form state
     let name = '';
     let color = getNextColor(this.plugin.settings.sources);
     let enabled = true;
 
-    // Type-specific state
     let clientId = '';
     let clientSecret = '';
     let serverUrl = '';
@@ -440,7 +370,6 @@ class AddSourceModal extends Modal {
     let selectedCaldavCals: Array<{ path: string; displayName: string }> = [];
     let feedUrl = '';
 
-    // Common fields
     new Setting(contentEl)
       .setName('名称')
       .setDesc('此日历源的显示名称')
@@ -458,7 +387,7 @@ class AddSourceModal extends Modal {
     const paletteRow = contentEl.createDiv({ cls: 'uni-calendar-palette-row' });
     for (const { name: paletteName, hex } of RECOMMENDED_PALETTE) {
       const swatch = paletteRow.createDiv({ cls: 'uni-calendar-palette-swatch' });
-      swatch.style.background = hex;
+      swatch.setCssProps({ background: hex });
       swatch.setAttribute('aria-label', paletteName);
       swatch.setAttribute('title', paletteName);
       if (hex === color) swatch.addClass('is-selected');
@@ -481,24 +410,22 @@ class AddSourceModal extends Modal {
         .setValue(enabled)
         .onChange(value => { enabled = value; }));
 
-    // Type-specific fields
     if (type === 'google') {
       new Setting(contentEl)
         .setName('Client ID')
-        .setDesc('OAuth2 Client ID from Google Cloud Console')
+        .setDesc('Google Cloud Console 中的 OAuth2 Client ID')
         .addText(text => text
           .setPlaceholder('xxxx.apps.googleusercontent.com')
           .onChange(value => { clientId = value; }));
 
       new Setting(contentEl)
-        .setName('Client Secret')
-        .setDesc('OAuth2 Client Secret from Google Cloud Console')
+        .setName('Client secret')
+        .setDesc('Google Cloud Console 中的 OAuth2 Client Secret')
         .addText(text => {
           text.setPlaceholder('GOCSPX-xxxx')
             .onChange(value => { clientSecret = value; });
           text.inputEl.type = 'password';
         });
-
     } else if (type === 'caldav') {
       new Setting(contentEl)
         .setName('服务器地址')
@@ -520,69 +447,58 @@ class AddSourceModal extends Modal {
           text.inputEl.type = 'password';
         });
 
-      // Calendar discovery
       const discoveryContainer = contentEl.createDiv();
       new Setting(discoveryContainer)
         .setName('自动发现日历')
         .addButton(btn => btn
           .setButtonText('发现日历')
-          .onClick(async () => {
-            if (!serverUrl.trim() || !username.trim() || !password.trim()) {
-              new Notice('请先填写服务器地址、用户名和密码');
-              return;
-            }
-            btn.setDisabled(true);
-            btn.setButtonText('发现中...');
-            try {
-              const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
-              const calendars = await adapter.discoverCalendars(
-                serverUrl.trim(), username.trim(), password,
-              );
-              if (calendars.length === 0) {
-                new Notice('未发现任何日历');
-              } else {
-                new CalendarPickerModal(this.app, calendars, selectedCaldavCals.map(c => c.path), (cals) => {
-                  selectedCaldavCals = cals.map(c => ({ path: c.href, displayName: c.displayName || c.href }));
-                  // Backward compat
-                  calendarPath = cals[0]?.href ?? '';
-                  calendarDisplayName = cals[0]?.displayName || calendarPath;
-                  selectedCalLabel.empty();
-                  if (selectedCaldavCals.length > 0) {
-                    const names = selectedCaldavCals.map(c => c.displayName).join(', ');
-                    selectedCalLabel.createEl('span', {
-                      text: `已选日历 (${selectedCaldavCals.length}): ${names}`,
-                      attr: { style: 'font-size: var(--font-ui-small); color: var(--text-muted);' },
-                    });
-                  }
-                }).open();
+          .onClick(() => {
+            void (async () => {
+              if (!serverUrl.trim() || !username.trim() || !password.trim()) {
+                new Notice('请先填写服务器地址、用户名和密码');
+                return;
               }
-            } catch (err) {
-              new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
-            } finally {
-              btn.setDisabled(false);
-              btn.setButtonText('发现日历');
-            }
+              btn.setDisabled(true);
+              btn.setButtonText('发现中…');
+              try {
+                const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+                const calendars = await adapter.discoverCalendars(serverUrl.trim(), username.trim(), password);
+                if (calendars.length === 0) {
+                  new Notice('未发现任何日历');
+                } else {
+                  new CalendarPickerModal(this.app, calendars, selectedCaldavCals.map(c => c.path), (cals) => {
+                    selectedCaldavCals = cals.map(c => ({ path: c.href, displayName: c.displayName || c.href }));
+                    calendarPath = cals[0]?.href ?? '';
+                    calendarDisplayName = cals[0]?.displayName || calendarPath;
+                    renderSelectionLabel(
+                      selectedCalLabel,
+                      selectedCaldavCals.length > 0
+                        ? `已选日历（${selectedCaldavCals.length}）: ${selectedCaldavCals.map(c => c.displayName).join(', ')}`
+                        : '',
+                    );
+                  }).open();
+                }
+              } catch (err) {
+                new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
+              } finally {
+                btn.setDisabled(false);
+                btn.setButtonText('发现日历');
+              }
+            })();
           }));
 
-      const selectedCalLabel = discoveryContainer.createDiv({
-        cls: 'setting-item',
-        attr: { style: 'padding-top: 0;' },
-      });
-      selectedCalLabel.createEl('span', {
-        text: calendarPath ? `已选日历: ${calendarDisplayName || calendarPath}` : '',
-        attr: { style: 'font-size: var(--font-ui-small); color: var(--text-muted);' },
-      });
+      const selectedCalLabel = createLabelRow(discoveryContainer);
+      renderSelectionLabel(selectedCalLabel, calendarPath ? `已选日历: ${calendarDisplayName || calendarPath}` : '');
     } else if (type === 'ics') {
       new Setting(contentEl)
         .setName('订阅链接')
-        .setDesc('ICS/iCal 日历订阅 URL')
+        .setDesc('ICS 或 iCal 日历订阅地址')
         .addText(text => text
           .setPlaceholder('https://example.com/calendar.ics')
           .onChange(value => { feedUrl = value; }));
     }
 
-    // Action buttons
-    const buttonContainer = contentEl.createDiv({ attr: { style: 'display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4);' } });
+    const buttonContainer = contentEl.createDiv({ cls: 'uni-calendar-modal-actions' });
 
     const backBtn = buttonContainer.createEl('button', { text: '返回' });
     backBtn.addEventListener('click', () => {
@@ -592,61 +508,62 @@ class AddSourceModal extends Modal {
     });
 
     const saveBtn = buttonContainer.createEl('button', { text: '保存', cls: 'mod-cta' });
-    saveBtn.addEventListener('click', async () => {
-      if (!name.trim()) {
-        new Notice('请输入日历源名称');
-        return;
-      }
-
-      const source: CalendarSource = {
-        id: crypto.randomUUID(),
-        name: name.trim(),
-        type,
-        color,
-        enabled,
-      };
-
-      if (type === 'google') {
-        if (!clientId.trim() || !clientSecret.trim()) {
-          new Notice('请输入 Client ID 和 Client Secret');
+    saveBtn.addEventListener('click', () => {
+      void (async () => {
+        if (!name.trim()) {
+          new Notice('请输入日历源名称');
           return;
         }
-        source.google = {
-          clientId: clientId.trim(),
-          clientSecret: clientSecret.trim(),
+
+        const source: CalendarSource = {
+          id: crypto.randomUUID(),
+          name: name.trim(),
+          type,
+          color,
+          enabled,
         };
-      } else if (type === 'caldav') {
-        if (!serverUrl.trim()) {
-          new Notice('请输入 CalDAV 服务器地址');
-          return;
-        }
-        source.caldav = {
-          serverUrl: serverUrl.trim(),
-          username: username.trim(),
-          password,
-          calendarPath: calendarPath.trim() || undefined,
-          calendarDisplayName: calendarDisplayName.trim() || undefined,
-          selectedCalendars: selectedCaldavCals.length > 0 ? selectedCaldavCals : undefined,
-        };
-      } else if (type === 'ics') {
-        if (!feedUrl.trim()) {
-          new Notice('请输入 ICS 订阅链接');
-          return;
-        }
-        source.ics = { feedUrl: feedUrl.trim() };
-      }
 
-      this.plugin.settings.sources.push(source);
-      await this.plugin.saveSettings();
-      this.close();
-      this.onDone();
+        if (type === 'google') {
+          if (!clientId.trim() || !clientSecret.trim()) {
+            new Notice('请输入 Client ID 和 Client Secret');
+            return;
+          }
+          source.google = {
+            clientId: clientId.trim(),
+            clientSecret: clientSecret.trim(),
+          };
+        } else if (type === 'caldav') {
+          if (!serverUrl.trim()) {
+            new Notice('请输入 CalDAV 服务器地址');
+            return;
+          }
+          source.caldav = {
+            serverUrl: serverUrl.trim(),
+            username: username.trim(),
+            password,
+            calendarPath: calendarPath.trim() || undefined,
+            calendarDisplayName: calendarDisplayName.trim() || undefined,
+            selectedCalendars: selectedCaldavCals.length > 0 ? selectedCaldavCals : undefined,
+          };
+        } else if (type === 'ics') {
+          if (!feedUrl.trim()) {
+            new Notice('请输入 ICS 订阅链接');
+            return;
+          }
+          source.ics = { feedUrl: feedUrl.trim() };
+        }
 
-      // Post-save reminders
-      if (type === 'google') {
-        new Notice('已添加 Google 日历源。请编辑此源完成授权并选择日历。');
-      } else if (type === 'caldav' && !calendarPath.trim()) {
-        new Notice('已添加 CalDAV 日历源。请编辑此源发现并选择日历。');
-      }
+        this.plugin.settings.sources.push(source);
+        await this.plugin.saveSettings();
+        this.close();
+        this.onDone();
+
+        if (type === 'google') {
+          new Notice('已添加 Google 日历源。请编辑此源，完成授权并选择日历。');
+        } else if (type === 'caldav' && !calendarPath.trim()) {
+          new Notice('已添加 CalDAV 日历源。请编辑此源，发现并选择日历。');
+        }
+      })();
     });
   }
 }
@@ -669,16 +586,13 @@ class EditSourceModal extends Modal {
 
     const { contentEl } = this;
     contentEl.empty();
-    contentEl.createEl('style', { text: CARD_STYLES });
 
     const source = this.source;
 
-    // Mutable copy of values
     let name = source.name;
     let color = source.color;
     let enabled = source.enabled;
 
-    // Type-specific mutable copies
     let clientId = source.google?.clientId ?? '';
     let clientSecret = source.google?.clientSecret ?? '';
     let serverUrl = source.caldav?.serverUrl ?? '';
@@ -689,16 +603,14 @@ class EditSourceModal extends Modal {
     let selectedCaldavCals: Array<{ path: string; displayName: string }> = source.caldav?.selectedCalendars ? [...source.caldav.selectedCalendars] : [];
     let feedUrl = source.ics?.feedUrl ?? '';
 
-    // Type (read-only)
     new Setting(contentEl)
       .setName('类型')
       .setDesc(typeLabels[source.type])
       .setDisabled(true);
 
-    // Common fields
     new Setting(contentEl)
-      .setName('Name')
-      .setDesc('Display name for this calendar source')
+      .setName('名称')
+      .setDesc('此日历源的显示名称')
       .addText(text => text
         .setValue(name)
         .onChange(value => { name = value; }));
@@ -713,7 +625,7 @@ class EditSourceModal extends Modal {
     const editPaletteRow = contentEl.createDiv({ cls: 'uni-calendar-palette-row' });
     for (const { name: paletteName, hex } of RECOMMENDED_PALETTE) {
       const swatch = editPaletteRow.createDiv({ cls: 'uni-calendar-palette-swatch' });
-      swatch.style.background = hex;
+      swatch.setCssProps({ background: hex });
       swatch.setAttribute('aria-label', paletteName);
       swatch.setAttribute('title', paletteName);
       if (hex === color) swatch.addClass('is-selected');
@@ -736,25 +648,23 @@ class EditSourceModal extends Modal {
         .setValue(enabled)
         .onChange(value => { enabled = value; }));
 
-    // Type-specific fields
     if (source.type === 'google') {
       new Setting(contentEl)
-        .setName('Client ID')
-        .setDesc('OAuth2 Client ID from Google Cloud Console')
+        .setName('Google 客户端 ID')
+        .setDesc('Google Cloud Console 中的 OAuth2 客户端 ID')
         .addText(text => text
           .setValue(clientId)
           .onChange(value => { clientId = value; }));
 
       new Setting(contentEl)
-        .setName('Client Secret')
-        .setDesc('OAuth2 Client Secret from Google Cloud Console')
+        .setName('Google 客户端密钥')
+        .setDesc('Google Cloud Console 中的 OAuth2 客户端密钥')
         .addText(text => {
           text.setValue(clientSecret)
             .onChange(value => { clientSecret = value; });
           text.inputEl.type = 'password';
         });
 
-      // OAuth flow helpers
       const startOAuthFlow = async (): Promise<void> => {
         if (Platform.isMobile) {
           new Notice('Google 授权仅支持桌面端');
@@ -763,7 +673,7 @@ class EditSourceModal extends Modal {
         const cid = clientId.trim() || source.google?.clientId || '';
         const cs = clientSecret.trim() || source.google?.clientSecret || '';
         if (!cid || !cs) {
-          new Notice('请先填写 Client ID 和 Client Secret');
+          new Notice('请先填写 Google 客户端 ID 和客户端密钥');
           return;
         }
 
@@ -776,27 +686,27 @@ class EditSourceModal extends Modal {
           const verifier = authHelper.generateCodeVerifier();
           const { url } = await authHelper.buildAuthUrl(cid, redirectUri, verifier, source.id);
           window.open(url);
-          new Notice('请在浏览器中完成 Google 授权...');
+          new Notice('请在浏览器中完成 Google 授权…');
 
           const code = await oauthServer.codePromise;
           const tokens = await authHelper.exchangeCode(code, cid, cs, redirectUri, verifier);
 
-          // Save tokens to the source
           const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
-          if (idx !== -1 && this.plugin.settings.sources[idx]!.google) {
-            const googleConfig = this.plugin.settings.sources[idx]!.google!;
-            googleConfig.accessToken = tokens.accessToken;
-            googleConfig.refreshToken = tokens.refreshToken;
-            googleConfig.tokenExpiry = tokens.tokenExpiry;
-            googleConfig.refreshTokenFingerprint = formatGoogleTokenFingerprint(tokens.refreshToken);
-            googleConfig.refreshTokenSavedAt = Date.now();
-            googleConfig.lastRefreshAttemptAt = undefined;
-            googleConfig.lastRefreshTokenFingerprintUsed = undefined;
-            delete googleConfig.lastSyncError;
-            await this.plugin.saveSettings();
+          if (idx !== -1 && this.plugin.settings.sources[idx]?.google) {
+            const googleConfig = this.plugin.settings.sources[idx].google;
+            if (googleConfig) {
+              googleConfig.accessToken = tokens.accessToken;
+              googleConfig.refreshToken = tokens.refreshToken;
+              googleConfig.tokenExpiry = tokens.tokenExpiry;
+              googleConfig.refreshTokenFingerprint = formatGoogleTokenFingerprint(tokens.refreshToken);
+              googleConfig.refreshTokenSavedAt = Date.now();
+              googleConfig.lastRefreshAttemptAt = undefined;
+              googleConfig.lastRefreshTokenFingerprintUsed = undefined;
+              delete googleConfig.lastSyncError;
+              await this.plugin.saveSettings();
+            }
           }
-          new Notice('Google 日历授权成功！正在获取日历列表...');
-          // Refresh source reference after token save
+          new Notice('Google 日历授权成功，正在获取日历列表…');
           const updatedSource = this.plugin.settings.sources.find(s => s.id === source.id);
           if (updatedSource) {
             Object.assign(source, updatedSource);
@@ -808,7 +718,7 @@ class EditSourceModal extends Modal {
             new Notice(`Google 授权失败: ${err.userMessage}`);
           } else {
             console.error('[UniCalendar] Google OAuth authorization failed', err);
-            new Notice('Google 授权失败: ' + (err instanceof Error ? err.message : String(err)));
+            new Notice(`Google 授权失败: ${err instanceof Error ? err.message : String(err)}`);
           }
         } finally {
           oauthServer?.shutdown();
@@ -829,88 +739,85 @@ class EditSourceModal extends Modal {
             new Notice('未发现任何 Google 日历');
             return;
           }
-          const preSelected = (source.google?.selectedCalendars ?? []).map(c => c.id);
-          new GoogleCalendarPickerModal(this.app, calendars, preSelected, async (cals) => {
-            const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
-            if (idx !== -1 && this.plugin.settings.sources[idx]!.google) {
-              const g = this.plugin.settings.sources[idx]!.google!;
-              g.selectedCalendars = cals.map(c => ({ id: c.id, name: c.summary }));
-              // Backward compat: keep first selected as calendarId
-              g.calendarId = cals[0]?.id;
-              g.calendarName = cals[0]?.summary;
-              delete g.lastSyncError;
-              await this.plugin.saveSettings();
-              this.close();
-              this.onDone();
-            }
+          const preSelected = (source.google.selectedCalendars ?? []).map(c => c.id);
+          new GoogleCalendarPickerModal(this.app, calendars, preSelected, (cals) => {
+            void (async () => {
+              const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
+              if (idx !== -1 && this.plugin.settings.sources[idx]?.google) {
+                const g = this.plugin.settings.sources[idx].google;
+                if (g) {
+                  g.selectedCalendars = cals.map(c => ({ id: c.id, name: c.summary }));
+                  g.calendarId = cals[0]?.id;
+                  g.calendarName = cals[0]?.summary;
+                  delete g.lastSyncError;
+                  await this.plugin.saveSettings();
+                  this.close();
+                  this.onDone();
+                }
+              }
+            })();
           }).open();
         } catch (err) {
-          new Notice('日历发现失败: ' + (err instanceof Error ? err.message : String(err)));
+          new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
         }
       };
 
-      // Authorization section
       const authSection = contentEl.createDiv();
       if (source.google?.accessToken) {
         const selectionSummary = formatGoogleSelectionSummary(source) ?? '未选择日历';
         const errorSummary = formatGoogleErrorSummary(source);
         const diagnosticText = formatGoogleDiagnosticText(source);
+        const diagnosticVisible = diagnosticText.length > 0;
+
         new Setting(authSection)
           .setName('授权状态')
           .setDesc(errorSummary ? `已授权；${selectionSummary}；${errorSummary}` : `已授权；${selectionSummary}`)
           .addButton(btn => btn
             .setButtonText('重新授权')
-            .onClick(async () => { await startOAuthFlow(); }))
+            .onClick(() => {
+              void startOAuthFlow();
+            }))
           .addButton(btn => btn
             .setButtonText('选择日历')
             .setCta()
-            .onClick(async () => { await discoverAndPickCalendar(); }));
+            .onClick(() => {
+              void discoverAndPickCalendar();
+            }));
 
-        if (diagnosticText) {
+        if (diagnosticVisible) {
           const diagnosticSetting = new Setting(authSection)
-            .setName('诊断详情')
-            .setDesc('复制这段信息发给我，能更快判断是授权失效、配置错误、网络问题还是 Google 服务异常。')
+            .setName('Google 日历诊断详情')
+            .setDesc('复制这段信息发给我，可以更快判断是授权失效、配置错误、网络问题，还是 Google 服务异常。')
             .addButton(btn => btn
               .setButtonText('复制诊断信息')
-              .onClick(async () => {
-                try {
-                  if (navigator.clipboard?.writeText) {
-                    await navigator.clipboard.writeText(diagnosticText);
-                  } else {
-                    const textarea = document.createElement('textarea');
-                    textarea.value = diagnosticText;
-                    textarea.setAttribute('readonly', 'true');
-                    textarea.style.position = 'absolute';
-                    textarea.style.left = '-9999px';
-                    document.body.appendChild(textarea);
-                    textarea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textarea);
+              .onClick(() => {
+                void (async () => {
+                  try {
+                    await copyTextToClipboard(diagnosticText);
+                    new Notice('已复制 Google 诊断信息');
+                  } catch (err) {
+                    console.error('[UniCalendar] Failed to copy Google diagnostic text', err);
+                    new Notice('复制失败，请手动选择下方诊断文本');
                   }
-                  new Notice('已复制 Google 诊断信息');
-                } catch (err) {
-                  console.error('[UniCalendar] Failed to copy Google diagnostic text', err);
-                  new Notice('复制失败，请手动选择下方诊断文本');
-                }
+                })();
               }));
 
           const pre = authSection.createEl('pre', {
             text: diagnosticText,
-            attr: {
-              style: 'white-space: pre-wrap; word-break: break-word; margin: 0 0 12px 0; padding: 12px; border-radius: var(--radius-s); background: var(--background-secondary-alt); border: 1px solid var(--background-modifier-border); font-size: var(--font-ui-small); user-select: text;',
-            },
+            cls: 'uni-calendar-google-diagnostic',
           });
-          pre.addClass('uni-calendar-google-diagnostic');
           diagnosticSetting.settingEl.after(pre);
         }
       } else {
         new Setting(authSection)
-          .setName('授权 Google 日历')
-          .setDesc('点击授权按钮在浏览器中完成 Google 账号授权')
+          .setName('Google 日历授权')
+          .setDesc('点击授权按钮，在浏览器中完成 Google 账号授权')
           .addButton(btn => btn
             .setButtonText('授权')
             .setCta()
-            .onClick(async () => { await startOAuthFlow(); }));
+            .onClick(() => {
+              void startOAuthFlow();
+            }));
       }
     } else if (source.type === 'caldav') {
       new Setting(contentEl)
@@ -933,77 +840,67 @@ class EditSourceModal extends Modal {
           text.inputEl.type = 'password';
         });
 
-      // Calendar discovery (edit mode)
       const editDiscoveryContainer = contentEl.createDiv();
       new Setting(editDiscoveryContainer)
-        .setName('自动发现日历')
+        .setName('自动发现 CalDAV 日历')
         .addButton(btn => btn
           .setButtonText('发现日历')
-          .onClick(async () => {
-            const sv = serverUrl.trim() || source.caldav?.serverUrl || '';
-            const un = username.trim() || source.caldav?.username || '';
-            const pw = password || source.caldav?.password || '';
-            if (!sv || !un || !pw) {
-              new Notice('请先填写服务器地址、用户名和密码');
-              return;
-            }
-            btn.setDisabled(true);
-            btn.setButtonText('发现中...');
-            try {
-              const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
-              const calendars = await adapter.discoverCalendars(sv, un, pw);
-              if (calendars.length === 0) {
-                new Notice('未发现任何日历');
-              } else {
-                new CalendarPickerModal(this.app, calendars, selectedCaldavCals.map(c => c.path), (cals) => {
-                  selectedCaldavCals = cals.map(c => ({ path: c.href, displayName: c.displayName || c.href }));
-                  calendarPath = cals[0]?.href ?? '';
-                  calendarDisplayName = cals[0]?.displayName || calendarPath;
-                  selectedCalLabel.empty();
-                  if (selectedCaldavCals.length > 0) {
-                    const names = selectedCaldavCals.map(c => c.displayName).join(', ');
-                    selectedCalLabel.createEl('span', {
-                      text: `已选日历 (${selectedCaldavCals.length}): ${names}`,
-                      attr: { style: 'font-size: var(--font-ui-small); color: var(--text-muted);' },
-                    });
-                  }
-                }).open();
+          .onClick(() => {
+            void (async () => {
+              const sv = serverUrl.trim() || source.caldav?.serverUrl || '';
+              const un = username.trim() || source.caldav?.username || '';
+              const pw = password || source.caldav?.password || '';
+              if (!sv || !un || !pw) {
+                new Notice('请先填写服务器地址、用户名和密码');
+                return;
               }
-            } catch (err) {
-              new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
-            } finally {
-              btn.setDisabled(false);
-              btn.setButtonText('发现日历');
-            }
+              btn.setDisabled(true);
+              btn.setButtonText('发现中…');
+              try {
+                const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+                const calendars = await adapter.discoverCalendars(sv, un, pw);
+                if (calendars.length === 0) {
+                  new Notice('未发现任何日历');
+                } else {
+                  new CalendarPickerModal(this.app, calendars, selectedCaldavCals.map(c => c.path), (cals) => {
+                    selectedCaldavCals = cals.map(c => ({ path: c.href, displayName: c.displayName || c.href }));
+                    calendarPath = cals[0]?.href ?? '';
+                    calendarDisplayName = cals[0]?.displayName || calendarPath;
+                    renderSelectionLabel(
+                      selectedCalLabel,
+                      selectedCaldavCals.length > 0
+                        ? `已选日历（${selectedCaldavCals.length}）: ${selectedCaldavCals.map(c => c.displayName).join(', ')}`
+                        : calendarPath
+                          ? `已选日历: ${calendarDisplayName || calendarPath}`
+                          : '',
+                    );
+                  }).open();
+                }
+              } catch (err) {
+                new Notice(`日历发现失败: ${err instanceof Error ? err.message : String(err)}`);
+              } finally {
+                btn.setDisabled(false);
+                btn.setButtonText('发现日历');
+              }
+            })();
           }));
 
-      const selectedCalLabel = editDiscoveryContainer.createDiv({
-        cls: 'setting-item',
-        attr: { style: 'padding-top: 0;' },
-      });
+      const selectedCalLabel = createLabelRow(editDiscoveryContainer);
       if (selectedCaldavCals.length > 0) {
-        const names = selectedCaldavCals.map(c => c.displayName).join(', ');
-        selectedCalLabel.createEl('span', {
-          text: `已选日历 (${selectedCaldavCals.length}): ${names}`,
-          attr: { style: 'font-size: var(--font-ui-small); color: var(--text-muted);' },
-        });
+        renderSelectionLabel(selectedCalLabel, `已选日历（${selectedCaldavCals.length}）: ${selectedCaldavCals.map(c => c.displayName).join(', ')}`);
       } else {
-        selectedCalLabel.createEl('span', {
-          text: calendarPath ? `已选日历: ${calendarDisplayName || calendarPath}` : '',
-          attr: { style: 'font-size: var(--font-ui-small); color: var(--text-muted);' },
-        });
+        renderSelectionLabel(selectedCalLabel, calendarPath ? `已选日历: ${calendarDisplayName || calendarPath}` : '');
       }
     } else if (source.type === 'ics') {
       new Setting(contentEl)
         .setName('订阅链接')
-        .setDesc('ICS/iCal 日历订阅 URL')
+        .setDesc('ICS 或 iCal 日历订阅地址')
         .addText(text => text
           .setValue(feedUrl)
           .onChange(value => { feedUrl = value; }));
     }
 
-    // Action buttons
-    const buttonContainer = contentEl.createDiv({ attr: { style: 'display: flex; justify-content: flex-end; gap: var(--size-4-2); margin-top: var(--size-4-4);' } });
+    const buttonContainer = contentEl.createDiv({ cls: 'uni-calendar-modal-actions' });
 
     const cancelBtn = buttonContainer.createEl('button', { text: '取消' });
     cancelBtn.addEventListener('click', () => {
@@ -1011,57 +908,62 @@ class EditSourceModal extends Modal {
     });
 
     const saveBtn = buttonContainer.createEl('button', { text: '保存', cls: 'mod-cta' });
-    saveBtn.addEventListener('click', async () => {
-      if (!name.trim()) {
-        new Notice('请输入日历源名称');
-        return;
-      }
+    saveBtn.addEventListener('click', () => {
+      void (async () => {
+        if (!name.trim()) {
+          new Notice('请输入日历源名称');
+          return;
+        }
 
-      // Update source in-place
-      const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
-      if (idx === -1) {
-        new Notice('未找到日历源，可能已被删除。');
+        const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
+        if (idx === -1) {
+          new Notice('未找到日历源，可能已被删除。');
+          this.close();
+          return;
+        }
+
+        const updated: CalendarSource = {
+          id: source.id,
+          name: name.trim(),
+          type: source.type,
+          color,
+          enabled,
+        };
+
+        if (source.type === 'google') {
+          updated.google = {
+            clientId: clientId.trim(),
+            clientSecret: clientSecret.trim(),
+            accessToken: source.google?.accessToken,
+            refreshToken: source.google?.refreshToken,
+            tokenExpiry: source.google?.tokenExpiry,
+            calendarId: source.google?.calendarId,
+            calendarName: source.google?.calendarName,
+            selectedCalendars: source.google?.selectedCalendars,
+            refreshTokenFingerprint: source.google?.refreshTokenFingerprint,
+            refreshTokenSavedAt: source.google?.refreshTokenSavedAt,
+            lastRefreshAttemptAt: source.google?.lastRefreshAttemptAt,
+            lastRefreshTokenFingerprintUsed: source.google?.lastRefreshTokenFingerprintUsed,
+            lastSyncError: source.google?.lastSyncError,
+          };
+        } else if (source.type === 'caldav') {
+          updated.caldav = {
+            serverUrl: serverUrl.trim(),
+            username: username.trim(),
+            password,
+            calendarPath: calendarPath.trim() || undefined,
+            calendarDisplayName: calendarDisplayName.trim() || undefined,
+            selectedCalendars: selectedCaldavCals.length > 0 ? selectedCaldavCals : undefined,
+          };
+        } else if (source.type === 'ics') {
+          updated.ics = { feedUrl: feedUrl.trim() };
+        }
+
+        this.plugin.settings.sources[idx] = updated;
+        await this.plugin.saveSettings();
         this.close();
-        return;
-      }
-
-      const updated: CalendarSource = {
-        id: source.id,
-        name: name.trim(),
-        type: source.type,
-        color,
-        enabled,
-      };
-
-      if (source.type === 'google') {
-        updated.google = {
-          clientId: clientId.trim(),
-          clientSecret: clientSecret.trim(),
-          accessToken: source.google?.accessToken,
-          refreshToken: source.google?.refreshToken,
-          tokenExpiry: source.google?.tokenExpiry,
-          calendarId: source.google?.calendarId,
-          calendarName: source.google?.calendarName,
-          selectedCalendars: source.google?.selectedCalendars,
-          lastSyncError: source.google?.lastSyncError,
-        };
-      } else if (source.type === 'caldav') {
-        updated.caldav = {
-          serverUrl: serverUrl.trim(),
-          username: username.trim(),
-          password,
-          calendarPath: calendarPath.trim() || undefined,
-          calendarDisplayName: calendarDisplayName.trim() || undefined,
-          selectedCalendars: selectedCaldavCals.length > 0 ? selectedCaldavCals : undefined,
-        };
-      } else if (source.type === 'ics') {
-        updated.ics = { feedUrl: feedUrl.trim() };
-      }
-
-      this.plugin.settings.sources[idx] = updated;
-      await this.plugin.saveSettings();
-      this.close();
-      this.onDone();
+        this.onDone();
+      })();
     });
   }
 
@@ -1084,18 +986,16 @@ class CalendarPickerModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText(`选择日历 (${this.calendars.length})`);
+    this.titleEl.setText(`选择日历（${this.calendars.length}）`);
     const { contentEl } = this;
     contentEl.empty();
 
     for (const cal of this.calendars) {
-      const item = contentEl.createDiv({
-        cls: 'uni-calendar-picker-item',
-        attr: {
-          style: 'display: flex; align-items: center; padding: 8px 12px; cursor: pointer; border-radius: var(--radius-s); margin-bottom: 4px;',
-        },
+      const item = contentEl.createDiv({ cls: 'uni-calendar-picker-item' });
+      const checkbox = item.createEl('input', {
+        type: 'checkbox',
+        cls: 'uni-calendar-picker-checkbox',
       });
-      const checkbox = item.createEl('input', { type: 'checkbox', attr: { style: 'margin-right: 8px;' } });
       checkbox.checked = this.selected.has(cal.href);
       item.createEl('span', { text: cal.displayName || cal.href });
       item.addEventListener('click', (evt) => {
@@ -1106,16 +1006,9 @@ class CalendarPickerModal extends Modal {
           this.selected.delete(cal.href);
         }
       });
-      item.addEventListener('mouseenter', () => {
-        item.style.background = 'var(--background-modifier-hover)';
-      });
-      item.addEventListener('mouseleave', () => {
-        item.style.background = '';
-      });
     }
 
-    // Confirm button
-    const btnContainer = contentEl.createDiv({ attr: { style: 'display: flex; justify-content: flex-end; margin-top: var(--size-4-3);' } });
+    const btnContainer = contentEl.createDiv({ cls: 'uni-calendar-picker-actions' });
     const confirmBtn = btnContainer.createEl('button', { text: '确认选择', cls: 'mod-cta' });
     confirmBtn.addEventListener('click', () => {
       const result = this.calendars.filter(c => this.selected.has(c.href));
@@ -1142,26 +1035,24 @@ class GoogleCalendarPickerModal extends Modal {
   }
 
   onOpen(): void {
-    this.titleEl.setText(`选择 Google 日历 (${this.calendars.length})`);
+    this.titleEl.setText(`选择 Google 日历（${this.calendars.length}）`);
     const { contentEl } = this;
     contentEl.empty();
 
     for (const cal of this.calendars) {
-      const item = contentEl.createDiv({
-        cls: 'uni-calendar-picker-item',
-        attr: {
-          style: 'display: flex; align-items: center; padding: 8px 12px; cursor: pointer; border-radius: var(--radius-s); margin-bottom: 4px;',
-        },
+      const item = contentEl.createDiv({ cls: 'uni-calendar-picker-item' });
+      const checkbox = item.createEl('input', {
+        type: 'checkbox',
+        cls: 'uni-calendar-picker-checkbox',
       });
-      const checkbox = item.createEl('input', { type: 'checkbox', attr: { style: 'margin-right: 8px;' } });
       checkbox.checked = this.selected.has(cal.id);
-      const label = cal.primary ? `${cal.summary} (主日历)` : cal.summary;
+      const label = cal.primary ? `${cal.summary}（主日历）` : cal.summary;
       item.createEl('span', { text: label });
       if (cal.backgroundColor) {
-        item.createSpan({
-          cls: 'uni-calendar-color-dot',
-          attr: { style: `background: ${cal.backgroundColor}; margin-left: 8px;` },
+        const dot = item.createSpan({
+          cls: 'uni-calendar-color-dot uni-calendar-picker-color-dot',
         });
+        dot.setCssProps({ background: cal.backgroundColor });
       }
       item.addEventListener('click', (evt) => {
         if (evt.target !== checkbox) checkbox.checked = !checkbox.checked;
@@ -1171,12 +1062,9 @@ class GoogleCalendarPickerModal extends Modal {
           this.selected.delete(cal.id);
         }
       });
-      item.addEventListener('mouseenter', () => { item.style.background = 'var(--background-modifier-hover)'; });
-      item.addEventListener('mouseleave', () => { item.style.background = ''; });
     }
 
-    // Confirm button
-    const btnContainer = contentEl.createDiv({ attr: { style: 'display: flex; justify-content: flex-end; margin-top: var(--size-4-3);' } });
+    const btnContainer = contentEl.createDiv({ cls: 'uni-calendar-picker-actions' });
     const confirmBtn = btnContainer.createEl('button', { text: '确认选择', cls: 'mod-cta' });
     confirmBtn.addEventListener('click', () => {
       const result = this.calendars.filter(c => this.selected.has(c.id));
