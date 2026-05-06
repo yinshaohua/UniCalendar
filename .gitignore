@@ -27,5 +27,9 @@ data.json
 # GSD 规划目录
 .planning/
 
+# agent/runtime 状态目录
+.gsd/
+.bg-shell/
+
 # git 相关
 **/.gitkeep

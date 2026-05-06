@@ -1,8 +1,8 @@
 import { App, Modal, Notice, Platform, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { CalendarSource, UniCalendarSettings, SOURCE_COLORS, getNextColor, RECOMMENDED_PALETTE } from '../models/types';
+import { CalendarSource, GoogleSyncDiagnostic, UniCalendarSettings, SOURCE_COLORS, getNextColor, RECOMMENDED_PALETTE, formatGoogleTokenFingerprint } from '../models/types';
 import { CalDavSyncAdapter, DiscoveredCalendar } from '../sync/CalDavSyncAdapter';
 import { IcsSyncAdapter } from '../sync/IcsSyncAdapter';
-import { GoogleAuthHelper } from '../sync/GoogleAuthHelper';
+import { GoogleAuthHelper, GoogleTokenError } from '../sync/GoogleAuthHelper';
 import { GoogleSyncAdapter, GoogleCalendarEntry } from '../sync/GoogleSyncAdapter';
 import { startOAuthServer } from '../sync/OAuthServer';
 
@@ -14,6 +14,82 @@ interface UniCalendarPlugin extends Plugin {
   settings: UniCalendarSettings;
   saveSettings(): Promise<void>;
   refreshCalendarViews(): void;
+}
+
+export function formatGoogleSelectionSummary(source: CalendarSource): string | null {
+  if (source.type !== 'google' || !source.google) {
+    return null;
+  }
+
+  const selCals = source.google.selectedCalendars;
+  if (selCals && selCals.length > 0) {
+    const names = selCals.map(c => c.name).join(', ');
+    return `已选日历 (${selCals.length}): ${names}`;
+  }
+
+  if (source.google.calendarId) {
+    const calName = source.google.calendarName || source.google.calendarId;
+    return `已选日历: ${calName}`;
+  }
+
+  return null;
+}
+
+export function formatGoogleErrorPhase(operation: GoogleSyncDiagnostic['operation']): string {
+  switch (operation) {
+    case 'exchange':
+      return '授权换取令牌';
+    case 'refresh':
+      return '刷新访问令牌';
+    case 'calendar-api':
+      return '拉取 Google 日历';
+    default:
+      return operation;
+  }
+}
+
+export function formatGoogleErrorTime(timestamp: number): string {
+  return new Date(timestamp).toLocaleString('zh-CN', {
+    hour12: false,
+  });
+}
+
+export function formatGoogleErrorSummary(source: CalendarSource): string | null {
+  if (source.type !== 'google' || !source.google?.lastSyncError) {
+    return null;
+  }
+
+  const error = source.google.lastSyncError;
+  const phase = formatGoogleErrorPhase(error.operation);
+  const time = formatGoogleErrorTime(error.timestamp);
+  return `上次失败: ${error.message}（阶段：${phase}；时间：${time}）`;
+}
+
+export function formatGoogleDiagnosticLines(source: CalendarSource): string[] {
+  if (source.type !== 'google' || !source.google?.lastSyncError) {
+    return [];
+  }
+
+  const error = source.google.lastSyncError;
+  return [
+    'UniCalendar Google 诊断',
+    `- source: ${source.name}`,
+    `- operation: ${error.operation}`,
+    `- phase: ${formatGoogleErrorPhase(error.operation)}`,
+    `- kind: ${error.kind}`,
+    `- status: ${error.status ?? ''}`,
+    `- apiError: ${error.apiError ?? ''}`,
+    `- apiErrorDescription: ${error.apiErrorDescription ?? ''}`,
+    `- tokenFingerprint: ${error.tokenFingerprint ?? source.google.refreshTokenFingerprint ?? ''}`,
+    `- tokenSavedAt: ${error.tokenSavedAt ? formatGoogleErrorTime(error.tokenSavedAt) : ''}`,
+    `- tokenLastRefreshedAt: ${error.tokenLastRefreshedAt ? formatGoogleErrorTime(error.tokenLastRefreshedAt) : ''}`,
+    `- message: ${error.message}`,
+    `- timestamp: ${formatGoogleErrorTime(error.timestamp)}`,
+  ];
+}
+
+export function formatGoogleDiagnosticText(source: CalendarSource): string {
+  return formatGoogleDiagnosticLines(source).join('\n');
 }
 
 const CARD_STYLES = `
@@ -173,24 +249,30 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
       });
 
       // Google authorization status
-      if (source.type === 'google' && !source.google?.accessToken) {
-        detailsDiv.createEl('div', {
-          text: '未授权 - 请点击编辑进行授权',
-          cls: 'uni-calendar-source-status',
-          attr: { style: 'color: var(--text-error);' },
-        });
-      } else if (source.type === 'google' && source.google?.accessToken) {
-        const selCals = source.google.selectedCalendars;
-        if (selCals && selCals.length > 0) {
-          const names = selCals.map(c => c.name).join(', ');
+      if (source.type === 'google') {
+        if (!source.google?.accessToken) {
           detailsDiv.createEl('div', {
-            text: `已授权 - ${names}`,
+            text: '未授权 - 请点击编辑进行授权',
+            cls: 'uni-calendar-source-status',
+            attr: { style: 'color: var(--text-error);' },
+          });
+        } else if (source.google.lastSyncError?.kind === 'invalid_grant') {
+          detailsDiv.createEl('div', {
+            text: '授权失效 - 请重新授权',
+            cls: 'uni-calendar-source-status',
+            attr: { style: 'color: var(--text-error); font-weight: 600;' },
+          });
+        } else {
+          detailsDiv.createEl('div', {
+            text: '已授权',
             cls: 'uni-calendar-source-status',
           });
-        } else if (source.google.calendarId) {
-          const calName = source.google.calendarName || source.google.calendarId;
+        }
+
+        const selectionSummary = formatGoogleSelectionSummary(source);
+        if (selectionSummary) {
           detailsDiv.createEl('div', {
-            text: `已授权 - ${calName}`,
+            text: selectionSummary,
             cls: 'uni-calendar-source-status',
           });
         } else {
@@ -198,6 +280,15 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
             text: '未选择日历 - 无法同步',
             cls: 'uni-calendar-source-status',
             attr: { style: 'color: var(--color-orange); font-weight: 600;' },
+          });
+        }
+
+        const errorSummary = formatGoogleErrorSummary(source);
+        if (errorSummary) {
+          detailsDiv.createEl('div', {
+            text: errorSummary,
+            cls: 'uni-calendar-source-status',
+            attr: { style: 'color: var(--text-error);' },
           });
         }
       }
@@ -693,9 +784,15 @@ class EditSourceModal extends Modal {
           // Save tokens to the source
           const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
           if (idx !== -1 && this.plugin.settings.sources[idx]!.google) {
-            this.plugin.settings.sources[idx]!.google!.accessToken = tokens.accessToken;
-            this.plugin.settings.sources[idx]!.google!.refreshToken = tokens.refreshToken;
-            this.plugin.settings.sources[idx]!.google!.tokenExpiry = tokens.tokenExpiry;
+            const googleConfig = this.plugin.settings.sources[idx]!.google!;
+            googleConfig.accessToken = tokens.accessToken;
+            googleConfig.refreshToken = tokens.refreshToken;
+            googleConfig.tokenExpiry = tokens.tokenExpiry;
+            googleConfig.refreshTokenFingerprint = formatGoogleTokenFingerprint(tokens.refreshToken);
+            googleConfig.refreshTokenSavedAt = Date.now();
+            googleConfig.lastRefreshAttemptAt = undefined;
+            googleConfig.lastRefreshTokenFingerprintUsed = undefined;
+            delete googleConfig.lastSyncError;
             await this.plugin.saveSettings();
           }
           new Notice('Google 日历授权成功！正在获取日历列表...');
@@ -706,7 +803,13 @@ class EditSourceModal extends Modal {
           }
           await discoverAndPickCalendar();
         } catch (err) {
-          new Notice('Google 授权失败: ' + (err instanceof Error ? err.message : String(err)));
+          if (err instanceof GoogleTokenError) {
+            console.error('[UniCalendar] Google OAuth authorization diagnostic', err.toLogObject());
+            new Notice(`Google 授权失败: ${err.userMessage}`);
+          } else {
+            console.error('[UniCalendar] Google OAuth authorization failed', err);
+            new Notice('Google 授权失败: ' + (err instanceof Error ? err.message : String(err)));
+          }
         } finally {
           oauthServer?.shutdown();
         }
@@ -735,6 +838,7 @@ class EditSourceModal extends Modal {
               // Backward compat: keep first selected as calendarId
               g.calendarId = cals[0]?.id;
               g.calendarName = cals[0]?.summary;
+              delete g.lastSyncError;
               await this.plugin.saveSettings();
               this.close();
               this.onDone();
@@ -748,9 +852,12 @@ class EditSourceModal extends Modal {
       // Authorization section
       const authSection = contentEl.createDiv();
       if (source.google?.accessToken) {
+        const selectionSummary = formatGoogleSelectionSummary(source) ?? '未选择日历';
+        const errorSummary = formatGoogleErrorSummary(source);
+        const diagnosticText = formatGoogleDiagnosticText(source);
         new Setting(authSection)
           .setName('授权状态')
-          .setDesc(`已授权${source.google.calendarName ? ' - ' + source.google.calendarName : ''}`)
+          .setDesc(errorSummary ? `已授权；${selectionSummary}；${errorSummary}` : `已授权；${selectionSummary}`)
           .addButton(btn => btn
             .setButtonText('重新授权')
             .onClick(async () => { await startOAuthFlow(); }))
@@ -758,6 +865,44 @@ class EditSourceModal extends Modal {
             .setButtonText('选择日历')
             .setCta()
             .onClick(async () => { await discoverAndPickCalendar(); }));
+
+        if (diagnosticText) {
+          const diagnosticSetting = new Setting(authSection)
+            .setName('诊断详情')
+            .setDesc('复制这段信息发给我，能更快判断是授权失效、配置错误、网络问题还是 Google 服务异常。')
+            .addButton(btn => btn
+              .setButtonText('复制诊断信息')
+              .onClick(async () => {
+                try {
+                  if (navigator.clipboard?.writeText) {
+                    await navigator.clipboard.writeText(diagnosticText);
+                  } else {
+                    const textarea = document.createElement('textarea');
+                    textarea.value = diagnosticText;
+                    textarea.setAttribute('readonly', 'true');
+                    textarea.style.position = 'absolute';
+                    textarea.style.left = '-9999px';
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                  }
+                  new Notice('已复制 Google 诊断信息');
+                } catch (err) {
+                  console.error('[UniCalendar] Failed to copy Google diagnostic text', err);
+                  new Notice('复制失败，请手动选择下方诊断文本');
+                }
+              }));
+
+          const pre = authSection.createEl('pre', {
+            text: diagnosticText,
+            attr: {
+              style: 'white-space: pre-wrap; word-break: break-word; margin: 0 0 12px 0; padding: 12px; border-radius: var(--radius-s); background: var(--background-secondary-alt); border: 1px solid var(--background-modifier-border); font-size: var(--font-ui-small); user-select: text;',
+            },
+          });
+          pre.addClass('uni-calendar-google-diagnostic');
+          diagnosticSetting.settingEl.after(pre);
+        }
       } else {
         new Setting(authSection)
           .setName('授权 Google 日历')
@@ -898,6 +1043,7 @@ class EditSourceModal extends Modal {
           calendarId: source.google?.calendarId,
           calendarName: source.google?.calendarName,
           selectedCalendars: source.google?.selectedCalendars,
+          lastSyncError: source.google?.lastSyncError,
         };
       } else if (source.type === 'caldav') {
         updated.caldav = {

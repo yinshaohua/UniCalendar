@@ -2,7 +2,7 @@ import { CalendarSource, SyncState } from '../models/types';
 import { IcsSyncAdapter } from './IcsSyncAdapter';
 import { CalDavSyncAdapter } from './CalDavSyncAdapter';
 import { GoogleSyncAdapter } from './GoogleSyncAdapter';
-import { GoogleAuthHelper } from './GoogleAuthHelper';
+import { GoogleAuthHelper, GoogleTokenError } from './GoogleAuthHelper';
 import { EventStore } from '../store/EventStore';
 
 export class SyncManager {
@@ -77,9 +77,7 @@ export class SyncManager {
       const result = results[i]!;
       if (result.status === 'rejected') {
         const source = enabledSources[i]!;
-        const reason = result.reason instanceof Error
-          ? result.reason.message
-          : String(result.reason);
+        const reason = this.formatSyncError(result.reason);
         console.error(`[UniCalendar] Sync error for "${source.name}":`, result.reason);
         errors.push(`${source.name}: ${reason}`);
       }
@@ -94,5 +92,16 @@ export class SyncManager {
     } else {
       this.setState({ status: 'idle', lastSyncTime: Date.now() });
     }
+  }
+
+  private formatSyncError(reason: unknown): string {
+    if (reason instanceof GoogleTokenError) {
+      console.error('[UniCalendar] Google token flow diagnostic', reason.toLogObject());
+      return reason.userMessage;
+    }
+
+    return reason instanceof Error
+      ? reason.message
+      : String(reason);
   }
 }

@@ -1,13 +1,13 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SyncManager } from '../../src/sync/SyncManager';
 import { EventStore } from '../../src/store/EventStore';
 import { CalendarSource, SyncState } from '../../src/models/types';
+import { GoogleTokenError } from '../../src/sync/GoogleAuthHelper';
 
 function makeSource(overrides: Partial<CalendarSource> = {}): CalendarSource {
   return {
     id: 'test-source',
     name: 'Test',
-    // Use a fake type to hit the 'unsupported' branch (no network call)
     type: 'noop' as CalendarSource['type'],
     color: '#FF6961',
     enabled: true,
@@ -16,6 +16,16 @@ function makeSource(overrides: Partial<CalendarSource> = {}): CalendarSource {
 }
 
 describe('SyncManager', () => {
+  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(() => {
+    consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    consoleErrorSpy.mockRestore();
+  });
+
   it('initial state is idle with null lastSyncTime', () => {
     const manager = new SyncManager(() => {}, new EventStore());
     const state = manager.getState();
@@ -56,13 +66,13 @@ describe('SyncManager', () => {
 
     await manager.syncAll([makeSource()]);
 
-    expect(callCount).toBe(2); // syncing + idle
+    expect(callCount).toBe(2);
   });
 
   it('dispatches google sources to GoogleSyncAdapter', async () => {
     const states: SyncState[] = [];
     const store = new EventStore();
-    const manager = new SyncManager((s) => states.push({...s}), store);
+    const manager = new SyncManager((s) => states.push({ ...s }), store);
     const source = makeSource({
       type: 'google',
       google: {
@@ -76,15 +86,67 @@ describe('SyncManager', () => {
       },
     });
 
-    // Google adapter is wired and processes the source (no "not yet supported" warning)
     await manager.syncAll([source]);
 
     const finalState = manager.getState();
-    // Adapter completes successfully with mocked requestUrl
     expect(finalState.status).toBe('idle');
-    // Verify state transitions: syncing -> idle
     expect(states.length).toBe(2);
     expect(states[0]!.status).toBe('syncing');
     expect(states[1]!.status).toBe('idle');
+  });
+
+  it('surfaces structured Google token errors to sync state', async () => {
+    const states: SyncState[] = [];
+    const manager = new SyncManager((s) => states.push({ ...s }), new EventStore());
+    const source = makeSource({
+      type: 'google',
+      name: 'Google 主日历',
+      google: {
+        clientId: 'test-id',
+        clientSecret: 'test-secret',
+        refreshToken: 'refresh-token',
+        tokenExpiry: Date.now() - 1000,
+        calendarId: 'primary',
+        calendarName: 'My Calendar',
+      },
+    });
+
+    const tokenError = new GoogleTokenError({
+      operation: 'refresh',
+      kind: 'invalid_grant',
+      userMessage: 'Google 刷新令牌已失效或被撤销，请重新授权。',
+      logMessage: '刷新访问令牌失败：Google 返回 invalid_grant',
+      status: 400,
+      apiError: 'invalid_grant',
+    });
+
+    const googleAdapter = (manager as unknown as { googleAdapter: { sync: (source: CalendarSource, rangeStart: Date, rangeEnd: Date) => Promise<never> } }).googleAdapter;
+    vi.spyOn(googleAdapter, 'sync').mockImplementationOnce(async (inputSource) => {
+      if (inputSource.google) {
+        inputSource.google.lastSyncError = {
+          message: tokenError.userMessage,
+          kind: tokenError.kind,
+          operation: tokenError.operation,
+          timestamp: Date.now(),
+          status: tokenError.status,
+          apiError: tokenError.apiError,
+          apiErrorDescription: tokenError.apiErrorDescription,
+        };
+      }
+      throw tokenError;
+    });
+
+    await manager.syncAll([source]);
+
+    const finalState = manager.getState();
+    expect(finalState.status).toBe('error');
+    if (finalState.status === 'error') {
+      expect(finalState.message).toContain('Google 主日历');
+      expect(finalState.message).toContain('Google 刷新令牌已失效或被撤销，请重新授权。');
+    }
+    expect(source.google?.lastSyncError?.operation).toBe('refresh');
+    expect(source.google?.lastSyncError?.kind).toBe('invalid_grant');
+    expect(consoleErrorSpy).toHaveBeenCalled();
+    expect(states.at(-1)?.status).toBe('error');
   });
 });

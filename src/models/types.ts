@@ -11,6 +11,27 @@ export interface CalendarEvent {
   uid?: string;  // iCalendar UID or Google event ID for cross-source dedup
 }
 
+export interface GoogleSyncDiagnostic {
+  message: string;
+  kind:
+    | 'network'
+    | 'invalid_grant'
+    | 'invalid_client'
+    | 'temporarily_unavailable'
+    | 'rate_limited'
+    | 'server'
+    | 'unexpected_response'
+    | 'unknown';
+  operation: 'exchange' | 'refresh' | 'calendar-api';
+  timestamp: number;
+  status?: number;
+  apiError?: string;
+  apiErrorDescription?: string;
+  tokenFingerprint?: string;
+  tokenSavedAt?: number;
+  tokenLastRefreshedAt?: number;
+}
+
 export interface CalendarSource {
   id: string;                    // UUID generated on creation
   name: string;
@@ -26,7 +47,12 @@ export interface CalendarSource {
     calendarId?: string;        // Selected calendar ID from discovery (legacy single-select)
     calendarName?: string;      // Display name of selected calendar (legacy single-select)
     selectedCalendars?: Array<{ id: string; name: string }>;
-};
+    refreshTokenFingerprint?: string;
+    refreshTokenSavedAt?: number;
+    lastRefreshAttemptAt?: number;
+    lastRefreshTokenFingerprintUsed?: string;
+    lastSyncError?: GoogleSyncDiagnostic;
+  };
   caldav?: { serverUrl: string; username: string; password: string; calendarPath?: string; calendarDisplayName?: string; selectedCalendars?: Array<{ path: string; displayName: string }>; };
   ics?: { feedUrl: string; };
 }
@@ -67,6 +93,23 @@ export interface UniCalendarData {
   settings: UniCalendarSettings;
   eventCache: EventCache;
   holidayCache: HolidayCache;  // Per D-04: cached in plugin data storage
+}
+
+export function formatGoogleTokenFingerprint(token: string | undefined): string | undefined {
+  if (!token) {
+    return undefined;
+  }
+
+  const normalized = token.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.length <= 10) {
+    return `${normalized.slice(0, 3)}…${normalized.slice(-2)}`;
+  }
+
+  return `${normalized.slice(0, 6)}…${normalized.slice(-4)}`;
 }
 
 export const SOURCE_COLORS: string[] = [

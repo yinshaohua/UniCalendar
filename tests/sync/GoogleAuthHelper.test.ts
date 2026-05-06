@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { requestUrl } from 'obsidian';
-import { GoogleAuthHelper } from '../../src/sync/GoogleAuthHelper';
+import { GoogleAuthHelper, GoogleTokenError } from '../../src/sync/GoogleAuthHelper';
 
 vi.mock('obsidian');
 
@@ -8,7 +8,7 @@ describe('GoogleAuthHelper', () => {
   let helper: GoogleAuthHelper;
 
   beforeEach(() => {
-    helper = new GoogleAuthHelper();
+    helper = new GoogleAuthHelper({ retryDelayMs: 0 });
     vi.mocked(requestUrl).mockReset();
     vi.mocked(requestUrl).mockResolvedValue({ json: {}, text: '', status: 200 });
   });
@@ -38,7 +38,6 @@ describe('GoogleAuthHelper', () => {
     it('generates a code_verifier of 43+ characters', () => {
       const verifier = helper.generateCodeVerifier();
       expect(verifier.length).toBeGreaterThanOrEqual(43);
-      // base64url: only alphanumeric, -, _
       expect(verifier).toMatch(/^[A-Za-z0-9_-]+$/);
     });
   });
@@ -99,19 +98,154 @@ describe('GoogleAuthHelper', () => {
 
       expect(result.accessToken).toBe('refreshed-token');
       expect(result.tokenExpiry).toBeGreaterThan(Date.now());
-      // Should NOT have refreshToken property
       expect(result).not.toHaveProperty('refreshToken');
 
       const call = vi.mocked(requestUrl).mock.calls[0]![0] as { body: string };
       expect(call.body).toContain('grant_type=refresh_token');
     });
 
-    it('throws error with "重新授权" when response status >= 400', async () => {
-      vi.mocked(requestUrl).mockRejectedValueOnce({ status: 401 });
+    it('retries once for retryable network failures', async () => {
+      vi.mocked(requestUrl)
+        .mockRejectedValueOnce(new Error('socket hang up'))
+        .mockResolvedValueOnce({
+          json: { access_token: 'retry-token', expires_in: 3600 },
+          text: '',
+          status: 200,
+        });
 
-      await expect(
-        helper.refreshAccessToken('bad-rt', 'cid', 'cs'),
-      ).rejects.toThrow(/重新授权/);
+      const result = await helper.refreshAccessToken('rt', 'cid', 'cs');
+
+      expect(result.accessToken).toBe('retry-token');
+      expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws invalid_grant as reauth-required token error', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce({
+        json: { error: 'invalid_grant', error_description: 'Token has been expired or revoked.' },
+        text: '',
+        status: 400,
+      });
+
+      await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'invalid_grant',
+        userMessage: 'Google 刷新令牌已失效或被撤销，请重新授权。',
+      });
+      expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(1);
+    });
+
+    it('parses nested OAuth error objects returned with status 400', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce({
+        json: {
+          error: {
+            error: 'invalid_grant',
+            message: 'Token has been expired or revoked',
+          },
+        },
+        text: '',
+        status: 400,
+      });
+
+      await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'invalid_grant',
+        apiError: 'invalid_grant',
+        apiErrorDescription: 'Token has been expired or revoked',
+      });
+    });
+
+    it('parses token errors from response text when json payload is empty', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce({
+        json: {},
+        text: '{"error":"invalid_grant","error_description":"Token has been expired or revoked"}',
+        status: 400,
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+      } as never);
+
+      await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'invalid_grant',
+        apiError: 'invalid_grant',
+        apiErrorDescription: 'Token has been expired or revoked',
+      });
+    });
+
+    it('preserves sanitized response text for unknown 400 diagnostics', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce({
+        json: {},
+        text: '<html><body>bad request from upstream proxy</body></html>',
+        status: 400,
+        headers: { 'content-type': 'text/html' },
+      } as never);
+
+      await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'unknown',
+        status: 400,
+        apiErrorDescription: '<html><body>bad request from upstream proxy</body></html>',
+      });
+    });
+
+    it('preserves thrown error shape when requestUrl rejects with a non-standard 400 object', async () => {
+      vi.mocked(requestUrl).mockRejectedValue({
+        name: 'RequestUrlError',
+        message: 'Bad Request',
+        status: 400,
+        code: 'ERR_BAD_REQUEST',
+      });
+
+      await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'unknown',
+        status: 400,
+        apiErrorDescription: expect.stringContaining('name=RequestUrlError'),
+      });
+    });
+
+    it('maps thrown refresh 400 without body to invalid_grant-style reauth guidance', async () => {
+      vi.mocked(requestUrl).mockRejectedValue({
+        name: 'Error',
+        message: 'Request failed, status 400',
+        status: 400,
+        headers: {
+          'content-type': 'application/json; charset=UTF-8',
+          'www-authenticate': 'Bearer realm="https://accounts.google.com/"',
+        },
+      });
+
+      await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'invalid_grant',
+        status: 400,
+        apiError: 'invalid_grant',
+        userMessage: 'Google 刷新令牌已失效或被撤销，请重新授权。',
+      });
+    });
+
+    it('throws network token error when requestUrl rejects without API payload', async () => {
+      vi.mocked(requestUrl).mockRejectedValue(new Error('socket hang up'));
+
+      await expect(helper.refreshAccessToken('rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'network',
+        userMessage: '访问 Google 令牌接口失败，请检查网络或 VPN 连接后重试。',
+      });
+      expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(2);
+    });
+
+    it('throws invalid_client with configuration guidance', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce({
+        json: { error: 'invalid_client', error_description: 'Unauthorized' },
+        text: '',
+        status: 401,
+      });
+
+      await expect(helper.refreshAccessToken('rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'invalid_client',
+        userMessage: 'Google OAuth 客户端配置无效，请检查 Client ID 和 Client Secret。',
+      });
+      expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -122,7 +256,7 @@ describe('GoogleAuthHelper', () => {
         clientSecret: 'cs',
         accessToken: 'valid-token',
         refreshToken: 'rt',
-        tokenExpiry: Date.now() + 10 * 60 * 1000, // 10 min from now
+        tokenExpiry: Date.now() + 10 * 60 * 1000,
       };
 
       const token = await helper.ensureValidToken(google);
@@ -142,13 +276,29 @@ describe('GoogleAuthHelper', () => {
         clientSecret: 'cs',
         accessToken: 'old-token',
         refreshToken: 'rt',
-        tokenExpiry: Date.now() + 2 * 60 * 1000, // 2 min from now (within buffer)
+        tokenExpiry: Date.now() + 2 * 60 * 1000,
       };
 
       const token = await helper.ensureValidToken(google);
       expect(token).toBe('new-token');
       expect(google.accessToken).toBe('new-token');
       expect(google.tokenExpiry).toBeGreaterThan(Date.now());
+    });
+
+    it('propagates structured token errors for caller diagnostics', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce({
+        json: { error: 'invalid_grant', error_description: 'Token revoked' },
+        text: '',
+        status: 400,
+      });
+
+      const google = {
+        clientId: 'cid',
+        clientSecret: 'cs',
+        refreshToken: 'rt',
+      };
+
+      await expect(helper.ensureValidToken(google)).rejects.toBeInstanceOf(GoogleTokenError);
     });
   });
 });

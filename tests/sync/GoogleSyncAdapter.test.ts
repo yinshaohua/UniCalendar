@@ -103,6 +103,26 @@ describe('GoogleSyncAdapter', () => {
       expect(events[0]!.location).toBe('Room A');
     });
 
+    it('wraps Google events API 401 as reauth guidance', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce({
+        json: { error: { message: 'Invalid Credentials' } },
+        text: '',
+        status: 401,
+      });
+
+      await expect(
+        adapter.sync(makeGoogleSource(), new Date(), new Date()),
+      ).rejects.toThrow(/重新授权/);
+    });
+
+    it('wraps Google events API network failures as retryable guidance', async () => {
+      vi.mocked(requestUrl).mockRejectedValueOnce(new Error('socket hang up'));
+
+      await expect(
+        adapter.sync(makeGoogleSource(), new Date(), new Date()),
+      ).rejects.toThrow(/检查网络/);
+    });
+
     it('throws with Chinese error when source.google is undefined', async () => {
       const source = makeGoogleSource();
       source.google = undefined;
