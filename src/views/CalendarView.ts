@@ -1,4 +1,5 @@
 import { ItemView, WorkspaceLeaf, setIcon } from 'obsidian';
+import type UniCalendarPlugin from '../main';
 import { CalendarEvent, SyncState } from '../models/types';
 import { EventStore } from '../store/EventStore';
 import { EventDetailModal } from './EventDetailModal';
@@ -6,589 +7,7 @@ import { LunarService, HolidayService } from '../lunar';
 
 export const VIEW_TYPE_CALENDAR = 'uni-calendar-view';
 
-const CALENDAR_CSS = `
-.uni-calendar-view {
-  padding: var(--size-4-3);
-  font-family: var(--font-interface);
-  color: var(--text-normal);
-  background: var(--background-primary);
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: auto;
-}
 
-/* === Toolbar === */
-.uni-calendar-toolbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--size-4-3);
-  padding-bottom: var(--size-4-3);
-  box-shadow: 0 1px 0 var(--background-modifier-border);
-  flex-shrink: 0;
-}
-.uni-calendar-toolbar-left {
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-2);
-}
-.uni-calendar-toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-2);
-}
-
-/* Label group: month label + lunar month, fixed width to stabilize toolbar buttons */
-.uni-calendar-label-group {
-  display: flex;
-  align-items: baseline;
-  min-width: 300px;
-}
-.uni-calendar-month-label {
-  font-size: 1.1em;
-  font-weight: 700;
-  color: var(--inline-title-color, var(--text-normal));
-  user-select: none;
-}
-
-/* Nav buttons — use Obsidian clickable-icon pattern */
-.uni-calendar-nav-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 4px 8px;
-  border-radius: var(--radius-s);
-  font-size: 1em;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s ease;
-}
-.uni-calendar-nav-btn:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-.uni-calendar-today-btn {
-  background: transparent;
-  border: 1px solid var(--background-modifier-border);
-  cursor: pointer;
-  color: var(--text-normal);
-  padding: 2px 10px;
-  border-radius: var(--radius-s);
-  font-size: var(--font-ui-smaller);
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-.uni-calendar-today-btn:hover {
-  background: var(--background-modifier-hover);
-}
-
-/* View mode tabs — Obsidian segmented control style */
-.uni-calendar-view-tabs {
-  display: inline-flex;
-  background: var(--background-secondary);
-  border-radius: var(--radius-s);
-  padding: 2px;
-  gap: 1px;
-}
-.uni-calendar-view-tab {
-  padding: 3px 12px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: var(--font-ui-smaller);
-  border-radius: var(--radius-s);
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-.uni-calendar-view-tab:hover {
-  color: var(--text-normal);
-}
-.uni-calendar-view-tab.active {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  font-weight: 600;
-}
-
-/* Sync status in toolbar */
-.uni-calendar-sync-info {
-  display: flex;
-  align-items: center;
-  gap: var(--size-4-1);
-  font-size: var(--font-ui-smaller);
-  color: var(--text-faint);
-}
-.uni-calendar-sync-info.is-error {
-  color: var(--text-error);
-  cursor: pointer;
-}
-.uni-calendar-sync-info.is-syncing {
-  color: var(--text-accent);
-}
-.uni-calendar-sync-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 4px;
-  border-radius: var(--radius-s);
-  display: flex;
-  align-items: center;
-  transition: all 0.15s ease;
-}
-.uni-calendar-sync-btn:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-.uni-calendar-settings-btn {
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: var(--text-muted);
-  padding: 4px;
-  border-radius: var(--radius-s);
-  display: flex;
-  align-items: center;
-  transition: all 0.15s ease;
-}
-.uni-calendar-settings-btn:hover {
-  color: var(--text-normal);
-  background: var(--background-modifier-hover);
-}
-
-/* === Content area === */
-.uni-calendar-content {
-  position: relative;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-}
-
-/* === Month grid === */
-.uni-calendar-grid {
-  display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  flex: 1;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  overflow: hidden;
-}
-.uni-calendar-day-header {
-  padding: 0;
-  text-align: center;
-  font-size: var(--font-ui-smaller);
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  font-weight: 600;
-  border-bottom: 1px solid var(--background-modifier-border);
-  white-space: nowrap;
-  overflow: hidden;
-  line-height: 22px;
-  height: 22px;
-}
-.uni-calendar-day {
-  padding: 4px 6px;
-  min-height: 70px;
-  min-width: 0;
-  overflow: hidden;
-  background: var(--background-primary);
-  color: var(--text-normal);
-  font-size: var(--font-ui-small);
-  font-weight: 500;
-  border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-}
-.uni-calendar-day:nth-child(7n) {
-  border-right: none;
-}
-.uni-calendar-day-outside {
-  color: var(--text-faint);
-  background: var(--background-secondary-alt, var(--background-secondary));
-}
-.uni-calendar-day-today {
-  transition: background 0.3s ease;
-}
-.uni-calendar-day-today .uni-calendar-day-number {
-  background: var(--interactive-accent);
-  color: var(--text-on-accent);
-  border-radius: 50%;
-  width: 24px;
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-}
-
-/* === Week grid === */
-.uni-calendar-week-grid {
-  display: grid;
-  grid-template-columns: 50px repeat(7, 1fr);
-  flex: 1;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  overflow: hidden;
-}
-.uni-calendar-week-header-corner {
-  background: var(--background-secondary);
-  border-bottom: 1px solid var(--background-modifier-border);
-  border-right: 1px solid var(--background-modifier-border);
-}
-.uni-calendar-week-day-header {
-  padding: 6px 4px;
-  text-align: center;
-  font-size: var(--font-ui-smaller);
-  color: var(--text-muted);
-  background: var(--background-secondary);
-  font-weight: 600;
-  border-bottom: 1px solid var(--background-modifier-border);
-  border-right: 1px solid var(--background-modifier-border-variant, var(--background-modifier-border));
-}
-.uni-calendar-week-day-header:last-child {
-  border-right: none;
-}
-.uni-calendar-week-day-header.is-today {
-  color: var(--interactive-accent);
-  font-weight: 700;
-}
-.uni-calendar-week-hour-label {
-  padding: 2px 6px;
-  font-size: 11px;
-  color: var(--text-faint);
-  text-align: right;
-  background: var(--background-secondary);
-  border-right: 1px solid var(--background-modifier-border);
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  min-height: 40px;
-}
-.uni-calendar-week-cell {
-  min-height: 40px;
-  background: var(--background-primary);
-  border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-}
-.uni-calendar-week-cell:nth-child(8n) {
-  border-right: none;
-}
-.uni-calendar-week-cell.is-today {
-  transition: background 0.3s ease;
-}
-
-/* === Day grid === */
-.uni-calendar-day-grid {
-  display: grid;
-  grid-template-columns: 50px 1fr;
-  flex: 1;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  overflow: hidden;
-}
-.uni-calendar-day-view-header {
-  grid-column: 1 / -1;
-  padding: 8px 12px;
-  font-size: var(--font-ui-small);
-  font-weight: 600;
-  color: var(--text-normal);
-  background: var(--background-secondary);
-  border-bottom: 1px solid var(--background-modifier-border);
-}
-.uni-calendar-day-hour-label {
-  padding: 2px 6px;
-  font-size: 11px;
-  color: var(--text-faint);
-  text-align: right;
-  background: var(--background-secondary);
-  border-right: 1px solid var(--background-modifier-border);
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  min-height: 48px;
-}
-.uni-calendar-day-hour-cell {
-  min-height: 48px;
-  background: var(--background-primary);
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-}
-
-/* === Event Bars (Month View) === */
-.uni-calendar-day-events {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: 4px;
-}
-.uni-calendar-event-bar {
-  display: flex;
-  align-items: center;
-  padding: 4px 8px;
-  background: var(--background-secondary);
-  border-radius: 3px;
-  cursor: pointer;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--font-ui-smaller);
-  color: var(--text-normal);
-  min-height: 20px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  transition: box-shadow 0.15s ease, background 0.15s ease;
-}
-.uni-calendar-event-bar:hover {
-  background: var(--background-modifier-hover);
-  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-}
-.uni-calendar-event-bar-time {
-  color: var(--text-muted);
-  margin-right: 4px;
-  font-size: var(--font-ui-smaller);
-  flex-shrink: 0;
-}
-.uni-calendar-event-bar-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.uni-calendar-overflow {
-  padding: 4px 8px;
-  font-size: var(--font-ui-smaller);
-  color: var(--text-accent);
-  cursor: pointer;
-}
-.uni-calendar-overflow:hover {
-  text-decoration: underline;
-}
-.uni-calendar-day-number-link {
-  cursor: pointer;
-}
-.uni-calendar-day-number-link:hover {
-  text-decoration: underline;
-}
-
-/* === Event Blocks (Week/Day View) === */
-.uni-calendar-event-block {
-  position: absolute;
-  left: 0;
-  right: 0;
-  min-height: 20px;
-  border-radius: 3px;
-  padding: 4px 8px;
-  cursor: pointer;
-  overflow: hidden;
-  z-index: 2;
-  box-sizing: border-box;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
-  transition: box-shadow 0.15s ease, background 0.15s ease;
-}
-.uni-calendar-event-block:hover {
-  z-index: 3;
-  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
-}
-.uni-calendar-event-block-title {
-  font-size: var(--font-ui-small);
-  font-weight: 600;
-  color: var(--text-normal);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.uni-calendar-event-block-time {
-  font-size: var(--font-ui-smaller);
-  font-weight: 400;
-  color: var(--text-muted);
-}
-
-/* === Current Time Indicator === */
-.uni-calendar-now-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  border-top: 2px solid var(--text-error);
-  z-index: 5;
-  pointer-events: none;
-}
-.uni-calendar-now-dot {
-  position: absolute;
-  left: -3px;
-  top: -4px;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--text-error);
-}
-
-/* === Restructured Week Grid === */
-.uni-calendar-week-grid-new {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  overflow: auto;
-}
-.uni-calendar-week-header-row {
-  display: flex;
-  flex-shrink: 0;
-}
-.uni-calendar-week-header-row .uni-calendar-week-header-corner {
-  flex-shrink: 0;
-  width: 50px;
-}
-.uni-calendar-week-header-row .uni-calendar-week-day-header {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.uni-calendar-week-body {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-}
-.uni-calendar-hour-labels {
-  flex-shrink: 0;
-  width: 50px;
-  background: var(--background-secondary);
-  border-right: 1px solid var(--background-modifier-border);
-}
-.uni-calendar-hour-label-cell {
-  height: 40px;
-  padding: 2px 6px;
-  font-size: 11px;
-  color: var(--text-faint);
-  text-align: right;
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  box-sizing: border-box;
-}
-.uni-calendar-day-column {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  position: relative;
-  border-right: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-}
-.uni-calendar-day-column:last-child {
-  border-right: none;
-}
-.uni-calendar-day-column.is-today {
-  transition: background 0.3s ease;
-}
-.uni-calendar-hour-slot {
-  height: 40px;
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  box-sizing: border-box;
-}
-
-/* === Restructured Day Grid === */
-.uni-calendar-day-grid-new {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  border: 1px solid var(--background-modifier-border);
-  border-radius: var(--radius-m);
-  overflow: auto;
-}
-.uni-calendar-day-body {
-  display: flex;
-  flex: 1;
-}
-.uni-calendar-day-hour-label-cell {
-  height: 48px;
-  padding: 2px 6px;
-  font-size: 11px;
-  color: var(--text-faint);
-  text-align: right;
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  box-sizing: border-box;
-}
-.uni-calendar-day-single-column {
-  flex: 1;
-  position: relative;
-}
-.uni-calendar-day-hour-slot {
-  height: 48px;
-  border-bottom: 1px solid color-mix(in srgb, var(--background-modifier-border) 50%, transparent);
-  box-sizing: border-box;
-}
-
-/* === Lunar Calendar Layer === */
-.uni-calendar-day {
-  position: relative;
-}
-.uni-calendar-day-top {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  min-height: 24px;
-}
-.uni-calendar-lunar-text {
-  font-size: var(--font-ui-smaller);
-  font-weight: 400;
-  color: var(--text-faint);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.uni-calendar-lunar-text--festival {
-  font-weight: 600;
-  color: var(--text-accent);
-}
-.uni-calendar-lunar-text--solar-term {
-  color: color-mix(in srgb, var(--interactive-accent) 80%, var(--text-normal));
-}
-.uni-calendar-day--holiday-rest {
-  background: color-mix(in srgb, #ef4444 8%, var(--background-primary));
-}
-.uni-calendar-day--holiday-work {
-  background: color-mix(in srgb, #f59e0b 8%, var(--background-primary));
-}
-.uni-calendar-day-outside.uni-calendar-day--holiday-rest {
-  background: color-mix(in srgb, #ef4444 8%, var(--background-secondary-alt, var(--background-secondary)));
-}
-.uni-calendar-day-outside.uni-calendar-day--holiday-work {
-  background: color-mix(in srgb, #f59e0b 8%, var(--background-secondary-alt, var(--background-secondary)));
-}
-.uni-calendar-holiday-badge {
-  position: absolute;
-  top: 0;
-  right: 4px;
-  font-size: var(--font-ui-smaller);
-  font-weight: 600;
-  line-height: 1.0;
-  padding: 0 4px;
-  border-radius: var(--radius-s);
-}
-.uni-calendar-holiday-badge--rest {
-  background: color-mix(in srgb, #ef4444 75%, var(--background-primary));
-  color: #ffffff;
-}
-.uni-calendar-holiday-badge--work {
-  background: color-mix(in srgb, #f59e0b 75%, var(--background-primary));
-  color: #ffffff;
-}
-.uni-calendar-lunar-month {
-  font-size: var(--font-ui-small);
-  font-weight: 400;
-  color: var(--text-muted);
-  margin-left: 8px;
-}
-/* Week/day view holiday backgrounds */
-.uni-calendar-day-column.holiday-rest {
-  background: color-mix(in srgb, #ef4444 8%, var(--background-primary));
-}
-.uni-calendar-day-column.holiday-work {
-  background: color-mix(in srgb, #f59e0b 8%, var(--background-primary));
-}
-.uni-calendar-day-single-column.holiday-rest {
-  background: color-mix(in srgb, #ef4444 8%, var(--background-primary));
-}
-.uni-calendar-day-single-column.holiday-work {
-  background: color-mix(in srgb, #f59e0b 8%, var(--background-primary));
-}
-
-`;
 
 const DAY_FULL_NAMES = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
 const MONTH_NAMES = [
@@ -596,8 +15,7 @@ const MONTH_NAMES = [
   '7月', '8月', '9月', '10月', '11月', '12月',
 ];
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type PluginRef = any;
+type PluginRef = UniCalendarPlugin;
 
 export class CalendarView extends ItemView {
   private plugin: PluginRef;
@@ -641,7 +59,6 @@ export class CalendarView extends ItemView {
     const container = this.containerEl.children[1] as HTMLElement;
     container.empty();
     container.addClass('uni-calendar-view');
-    container.createEl('style', { text: CALENDAR_CSS });
     this.currentViewMode = this.plugin.settings.defaultView;
 
     // === Toolbar ===
@@ -696,8 +113,8 @@ export class CalendarView extends ItemView {
     const syncBtn = right.createEl('button', { cls: 'uni-calendar-sync-btn' });
     setIcon(syncBtn, 'refresh-cw');
     syncBtn.setAttribute('aria-label', '立即同步');
-    syncBtn.addEventListener('click', async () => {
-      await this.plugin.triggerSync();
+    syncBtn.addEventListener('click', () => {
+      void this.plugin.triggerSync();
     });
 
     const settingsBtn = right.createEl('button', { cls: 'uni-calendar-settings-btn' });
@@ -709,8 +126,8 @@ export class CalendarView extends ItemView {
 
     // === Content ===
     this.contentContainerEl = container.createDiv({ cls: 'uni-calendar-content' });
+    this.contentContainerEl.addClass('uni-calendar-content--focusable');
     this.contentContainerEl.setAttribute('tabindex', '0');
-    this.contentContainerEl.style.outline = 'none';
     this.contentContainerEl.addEventListener('keydown', (e: KeyboardEvent) => this.handleKeydown(e));
     this.renderCurrentView();
   }
@@ -838,10 +255,10 @@ export class CalendarView extends ItemView {
     if (this.currentViewMode === 'month' && this.plugin.settings.showLunarCalendar) {
       const lunarMonth = this.lunarService.getLunarMonthForTitle(this.displayYear, this.displayMonth);
       this.lunarMonthEl.setText('农历' + lunarMonth);
-      this.lunarMonthEl.style.display = '';
+      this.lunarMonthEl.removeClass('is-hidden');
     } else {
       this.lunarMonthEl.setText('');
-      this.lunarMonthEl.style.display = 'none';
+      this.lunarMonthEl.addClass('is-hidden');
     }
   }
 
@@ -1040,9 +457,11 @@ export class CalendarView extends ItemView {
           const event = events[ei]!;
           const bar = eventsEl.createDiv({ cls: 'uni-calendar-event-bar' });
           const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
-          bar.style.borderLeft = `3px solid ${sourceColor}`;
-          bar.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
-          bar.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+          bar.setCssProps({
+            '--uni-calendar-event-color': sourceColor,
+            '--uni-calendar-event-hover-color': `color-mix(in srgb, ${sourceColor} 25%, var(--background-primary))`,
+          });
+          bar.addClass('uni-calendar-event-surface');
           if (!event.allDay) {
             const timeStr = new Date(event.start).toLocaleTimeString('zh-CN', {
               hour: '2-digit',
@@ -1057,12 +476,10 @@ export class CalendarView extends ItemView {
             this.showEventDetail(event);
           });
           bar.addEventListener('mouseenter', () => {
-            bar.style.background = `color-mix(in srgb, ${sourceColor} 25%, var(--background-primary))`;
-            bar.style.boxShadow = '0 2px 6px rgba(0,0,0,0.12)';
+            bar.addClass('is-hovered');
           });
           bar.addEventListener('mouseleave', () => {
-            bar.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
-            bar.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+            bar.removeClass('is-hovered');
           });
         }
 
@@ -1121,15 +538,15 @@ export class CalendarView extends ItemView {
       // Holiday badge in header (D-08)
       const hi = weekHolidays[i]!;
       if (hi.type === 'rest') {
-        header.style.position = 'relative';
+        header.addClass('uni-calendar-holiday-header-anchor');
         header.createEl('span', {
-          text: '\u4F11',
+          text: '休',
           cls: 'uni-calendar-holiday-badge uni-calendar-holiday-badge--rest',
         });
       } else if (hi.type === 'work') {
-        header.style.position = 'relative';
+        header.addClass('uni-calendar-holiday-header-anchor');
         header.createEl('span', {
-          text: '\u73ED',
+          text: '班',
           cls: 'uni-calendar-holiday-badge uni-calendar-holiday-badge--work',
         });
       }
@@ -1202,9 +619,9 @@ export class CalendarView extends ItemView {
 
     // Holiday badge in header (D-08)
     if (holidayInfo.type) {
-      headerDiv.style.position = 'relative';
+      headerDiv.addClass('uni-calendar-holiday-header-anchor');
       headerDiv.createEl('span', {
-        text: holidayInfo.type === 'rest' ? '\u4F11' : '\u73ED',
+        text: holidayInfo.type === 'rest' ? '休' : '班',
         cls: holidayInfo.type === 'rest'
           ? 'uni-calendar-holiday-badge uni-calendar-holiday-badge--rest'
           : 'uni-calendar-holiday-badge uni-calendar-holiday-badge--work',
@@ -1324,27 +741,28 @@ export class CalendarView extends ItemView {
     const width = 100 / totalColumns;
     const left = column * width;
 
-    const block = columnEl.createDiv({ cls: 'uni-calendar-event-block' });
+    const block = columnEl.createDiv({ cls: 'uni-calendar-event-block uni-calendar-event-surface' });
     block.style.top = `${top}px`;
     block.style.height = `${height}px`;
     block.style.width = `${width}%`;
     block.style.left = `${left}%`;
 
     const sourceColor = EventStore.getSourceColor(event.sourceId, this.plugin.settings.sources);
+    block.setCssProps({
+      '--uni-calendar-event-color': sourceColor,
+      '--uni-calendar-event-hover-color': `color-mix(in srgb, ${sourceColor} 25%, var(--background-primary))`,
+    });
     block.style.borderLeft = `3px solid ${sourceColor}`;
     block.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
-    block.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
 
     block.createDiv({ cls: 'uni-calendar-event-block-title', text: event.title });
     block.createDiv({ cls: 'uni-calendar-event-block-time', text: this.formatTimeRange(event.start, event.end) });
 
     block.addEventListener('mouseenter', () => {
-      block.style.background = `color-mix(in srgb, ${sourceColor} 25%, var(--background-primary))`;
-      block.style.boxShadow = '0 2px 6px rgba(0,0,0,0.12)';
+      block.addClass('is-hovered');
     });
     block.addEventListener('mouseleave', () => {
-      block.style.background = `color-mix(in srgb, ${sourceColor} 15%, var(--background-primary))`;
-      block.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
+      block.removeClass('is-hovered');
     });
     block.addEventListener('click', (e) => {
       e.stopPropagation();

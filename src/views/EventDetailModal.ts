@@ -15,13 +15,11 @@ export class EventDetailModal extends Modal {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.addClass('uni-calendar-event-detail');
-    this.modalEl.style.boxShadow = '0 8px 32px rgba(0,0,0,0.18)';
+    this.modalEl.addClass('uni-calendar-event-detail-modal');
 
     // Title
     this.titleEl.setText(this.event.title);
-    this.titleEl.style.fontWeight = '600';
-    this.titleEl.style.fontSize = 'var(--font-ui-medium)';
-    this.titleEl.style.marginBottom = '16px';
+    this.titleEl.addClass('uni-calendar-event-detail-title');
 
     // Time field
     const timeRow = contentEl.createDiv({ cls: 'uni-calendar-detail-row' });
@@ -76,53 +74,6 @@ export class EventDetailModal extends Modal {
       });
       srcRow.createSpan({ text: source.name, cls: 'uni-calendar-detail-text' });
     }
-
-    // Inject styles
-    contentEl.createEl('style', { text: `
-      .uni-calendar-detail-row {
-        display: flex;
-        align-items: flex-start;
-        margin-bottom: 14px;
-        font-size: var(--font-ui-small);
-        color: var(--text-normal);
-      }
-      .uni-calendar-detail-icon {
-        flex-shrink: 0;
-        color: var(--text-muted);
-        margin-right: 8px;
-        margin-top: 1px;
-        display: flex;
-        align-items: center;
-      }
-      .uni-calendar-detail-icon svg {
-        width: 16px;
-        height: 16px;
-      }
-      .uni-calendar-detail-text {
-        font-weight: 400;
-      }
-      .uni-calendar-detail-desc {
-        white-space: pre-wrap;
-        max-height: 200px;
-        overflow-y: auto;
-        font-weight: 400;
-      }
-      .uni-calendar-detail-color-dot {
-        width: 12px;
-        height: 12px;
-        border-radius: 50%;
-        flex-shrink: 0;
-        margin-right: 8px;
-        margin-top: 3px;
-      }
-      .uni-calendar-event-detail {
-        animation: uni-fade-in 0.2s ease;
-      }
-      @keyframes uni-fade-in {
-        from { opacity: 0; transform: translateY(4px); }
-        to { opacity: 1; transform: translateY(0); }
-      }
-    `});
   }
 
   onClose(): void {

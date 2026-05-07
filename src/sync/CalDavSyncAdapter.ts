@@ -26,7 +26,7 @@ export class CalDavSyncAdapter {
     try {
       return await this.standardDiscovery(baseUrl, username, authHeader);
     } catch (err) {
-      console.log('[UniCalendar] Standard CalDAV discovery failed:', err instanceof Error ? err.message : err);
+      console.debug('[UniCalendar] Standard CalDAV discovery failed:', err instanceof Error ? err.message : err);
     }
 
     // Strategy 2: Try common CalDAV paths directly with PROPFIND Depth:1
@@ -42,10 +42,10 @@ export class CalDavSyncAdapter {
     for (const path of commonPaths) {
       try {
         const url = baseUrl + path;
-        console.log(`[UniCalendar] Trying CalDAV path: ${url}`);
+        console.debug(`[UniCalendar] Trying CalDAV path: ${url}`);
         const calendars = await this.listCalendars(url, authHeader, baseUrl);
         if (calendars.length > 0) {
-          console.log(`[UniCalendar] Found ${calendars.length} calendars at ${url}`);
+          console.debug(`[UniCalendar] Found ${calendars.length} calendars at ${url}`);
           return calendars;
         }
       } catch {
@@ -55,7 +55,7 @@ export class CalDavSyncAdapter {
 
     // Strategy 3: Try PROPFIND on server root with Depth:1 to find any calendar collections
     try {
-      console.log('[UniCalendar] Trying PROPFIND on server root with Depth:1');
+      console.debug('[UniCalendar] Trying PROPFIND on server root with Depth:1');
       const calendars = await this.listCalendars(baseUrl + '/', authHeader, baseUrl);
       if (calendars.length > 0) return calendars;
     } catch {
@@ -170,7 +170,7 @@ export class CalDavSyncAdapter {
     }
 
     const icsTexts = this.parseEventReportXml(responseText);
-    console.log(`[UniCalendar] CalDAV REPORT returned ${icsTexts.length} events from ${calendarPath}`);
+    console.debug(`[UniCalendar] CalDAV REPORT returned ${icsTexts.length} events from ${calendarPath}`);
     const events: CalendarEvent[] = [];
     for (const icsText of icsTexts) {
       try {
@@ -189,7 +189,7 @@ export class CalDavSyncAdapter {
   <D:prop><D:current-user-principal/></D:prop>
 </D:propfind>`;
 
-    console.log(`[UniCalendar] PROPFIND principal: ${url}`);
+    console.debug(`[UniCalendar] PROPFIND principal: ${url}`);
     const response = await requestUrl({
       url,
       method: 'PROPFIND',
@@ -200,7 +200,7 @@ export class CalDavSyncAdapter {
       },
       body,
     });
-    console.log(`[UniCalendar] PROPFIND principal response (${response.status}):`, response.text.substring(0, 500));
+    console.debug(`[UniCalendar] PROPFIND principal response (${response.status}):`, response.text.substring(0, 500));
 
     const doc = new DOMParser().parseFromString(response.text, 'text/xml');
     const href = this.findElementByLocalName(doc, 'current-user-principal')
@@ -254,7 +254,7 @@ export class CalDavSyncAdapter {
   </D:prop>
 </D:propfind>`;
 
-    console.log(`[UniCalendar] PROPFIND list calendars: ${homeSetUrl}`);
+    console.debug(`[UniCalendar] PROPFIND list calendars: ${homeSetUrl}`);
     const response = await requestUrl({
       url: homeSetUrl,
       method: 'PROPFIND',
@@ -265,7 +265,7 @@ export class CalDavSyncAdapter {
       },
       body,
     });
-    console.log(`[UniCalendar] PROPFIND list response (${response.status}):`, response.text.substring(0, 500));
+    console.debug(`[UniCalendar] PROPFIND list response (${response.status}):`, response.text.substring(0, 500));
 
     return this.parseCalendarListXml(response.text, baseUrl);
   }

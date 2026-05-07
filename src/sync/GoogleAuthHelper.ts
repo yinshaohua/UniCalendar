@@ -320,11 +320,11 @@ export class GoogleAuthHelper {
     }
 
     if (value && typeof value === 'object') {
-      const nestedError = Reflect.get(value, 'error');
+      const nestedError: unknown = Reflect.get(value, 'error');
       if (nestedError && typeof nestedError === 'object') {
         const nestedObj = nestedError as Record<string, unknown>;
-        const nestedCode = nestedObj.error;
-        const nestedDescription = nestedObj.error_description ?? nestedObj.message ?? nestedObj.error_message;
+        const nestedCode: unknown = nestedObj['error'];
+        const nestedDescription: unknown = nestedObj['error_description'] ?? nestedObj['message'] ?? nestedObj['error_message'];
         if (typeof nestedCode === 'string' || typeof nestedDescription === 'string') {
           return {
             error: typeof nestedCode === 'string' ? nestedCode : undefined,
@@ -377,12 +377,12 @@ export class GoogleAuthHelper {
       return undefined;
     }
 
-    const headers = Reflect.get(response, 'headers');
+    const headers: unknown = Reflect.get(response, 'headers');
     if (!headers || typeof headers !== 'object') {
       return undefined;
     }
 
-    const exact = Reflect.get(headers, headerName);
+    const exact: unknown = Reflect.get(headers, headerName);
     if (typeof exact === 'string') {
       return exact;
     }
@@ -551,9 +551,9 @@ export class GoogleAuthHelper {
         },
       };
     }
-    const json = Reflect.get(cause, 'json');
-    const text = Reflect.get(cause, 'text');
-    const headers = Reflect.get(cause, 'headers');
+    const json: unknown = Reflect.get(cause, 'json');
+    const text: unknown = Reflect.get(cause, 'text');
+    const headers: unknown = Reflect.get(cause, 'headers');
     const payload = this.extractTokenPayload(
       json,
       typeof text === 'string' ? text : undefined,
@@ -633,7 +633,8 @@ export class GoogleAuthHelper {
       parts.push(`text=${this.truncateForDiagnostic(obj.text)}`);
     }
 
-    const jsonSummary = this.summarizeJsonValue(Reflect.get(obj, 'json'));
+    const jsonValue: unknown = Reflect.get(obj, 'json');
+    const jsonSummary = this.summarizeJsonValue(jsonValue);
     if (jsonSummary) {
       parts.push(`json=${jsonSummary}`);
     }
@@ -670,7 +671,7 @@ export class GoogleAuthHelper {
     if (!cause || typeof cause !== 'object') {
       return undefined;
     }
-    const value = Reflect.get(cause, 'status');
+    const value: unknown = Reflect.get(cause, 'status');
     return typeof value === 'number' ? value : undefined;
   }
 
@@ -678,7 +679,7 @@ export class GoogleAuthHelper {
     if (!cause || typeof cause !== 'object') {
       return {};
     }
-    const value = Reflect.get(cause, 'json');
+    const value: unknown = Reflect.get(cause, 'json');
     return this.toTokenResponse(value);
   }
 

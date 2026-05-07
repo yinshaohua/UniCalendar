@@ -6,6 +6,16 @@ import { CalendarSource } from '../../src/models/types';
 
 vi.mock('obsidian');
 
+function makeResponse(json: unknown, status = 200, text = '') {
+  return {
+    json,
+    text,
+    status,
+    headers: {},
+    arrayBuffer: new ArrayBuffer(0),
+  };
+}
+
 function makeGoogleSource(overrides: Partial<CalendarSource> = {}): CalendarSource {
   return {
     id: 'gsrc-1',
@@ -29,28 +39,25 @@ function makeGoogleSource(overrides: Partial<CalendarSource> = {}): CalendarSour
 describe('GoogleSyncAdapter', () => {
   let adapter: GoogleSyncAdapter;
   let authHelper: GoogleAuthHelper;
+  let ensureValidTokenSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
     authHelper = new GoogleAuthHelper();
     // Mock ensureValidToken to just return the existing token
-    vi.spyOn(authHelper, 'ensureValidToken').mockResolvedValue('valid-token');
+    ensureValidTokenSpy = vi.spyOn(authHelper, 'ensureValidToken').mockResolvedValue('valid-token');
     adapter = new GoogleSyncAdapter(authHelper);
     vi.mocked(requestUrl).mockReset();
-    vi.mocked(requestUrl).mockResolvedValue({ json: {}, text: '', status: 200 });
+    vi.mocked(requestUrl).mockResolvedValue(makeResponse({}, 200));
   });
 
   describe('discoverCalendars', () => {
     it('calls GET calendarList with Bearer token and returns entries', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({
           items: [
             { id: 'primary', summary: 'Main', primary: true, backgroundColor: '#0088aa' },
             { id: 'work@group.v.calendar.google.com', summary: 'Work', primary: false },
           ],
-        },
-        text: '',
-        status: 200,
-      });
+        }, 200));
 
       const calendars: GoogleCalendarEntry[] = await adapter.discoverCalendars('my-token');
 
@@ -71,8 +78,7 @@ describe('GoogleSyncAdapter', () => {
 
   describe('sync', () => {
     it('calls ensureValidToken then fetchEvents and returns CalendarEvent[]', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({
           items: [
             {
               id: 'evt1',
@@ -83,10 +89,7 @@ describe('GoogleSyncAdapter', () => {
               location: 'Room A',
             },
           ],
-        },
-        text: '',
-        status: 200,
-      });
+        }, 200));
 
       const source = makeGoogleSource();
       const events = await adapter.sync(
@@ -95,7 +98,7 @@ describe('GoogleSyncAdapter', () => {
         new Date('2026-04-30T23:59:59Z'),
       );
 
-      expect(authHelper.ensureValidToken).toHaveBeenCalledWith(source.google);
+      expect(ensureValidTokenSpy).toHaveBeenCalledWith(source.google);
       expect(events).toHaveLength(1);
       expect(events[0]!.title).toBe('Meeting');
       expect(events[0]!.uid).toBe('ical-uid-1');
@@ -104,11 +107,7 @@ describe('GoogleSyncAdapter', () => {
     });
 
     it('wraps Google events API 401 as reauth guidance', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { error: { message: 'Invalid Credentials' } },
-        text: '',
-        status: 401,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ error: { message: 'Invalid Credentials' } }, 401));
 
       await expect(
         adapter.sync(makeGoogleSource(), new Date(), new Date()),
@@ -144,8 +143,7 @@ describe('GoogleSyncAdapter', () => {
 
   describe('toCalendarEvent mapping', () => {
     it('maps Google timed event to CalendarEvent with UTC ISO start/end', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({
           items: [
             {
               id: 'timed-1',
@@ -155,10 +153,7 @@ describe('GoogleSyncAdapter', () => {
               iCalUID: 'timed-uid-1',
             },
           ],
-        },
-        text: '',
-        status: 200,
-      });
+        }, 200));
 
       const events = await adapter.sync(
         makeGoogleSource(),
@@ -174,8 +169,7 @@ describe('GoogleSyncAdapter', () => {
     });
 
     it('maps Google all-day event to CalendarEvent with date string start/end', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({
           items: [
             {
               id: 'allday-1',
@@ -185,10 +179,7 @@ describe('GoogleSyncAdapter', () => {
               iCalUID: 'allday-uid-1',
             },
           ],
-        },
-        text: '',
-        status: 200,
-      });
+        }, 200));
 
       const events = await adapter.sync(
         makeGoogleSource(),
@@ -203,8 +194,7 @@ describe('GoogleSyncAdapter', () => {
     });
 
     it('uses googleEvent.id as uid fallback when iCalUID is absent', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({
           items: [
             {
               id: 'fallback-id',
@@ -213,10 +203,7 @@ describe('GoogleSyncAdapter', () => {
               end: { dateTime: '2026-04-01T11:00:00Z' },
             },
           ],
-        },
-        text: '',
-        status: 200,
-      });
+        }, 200));
 
       const events = await adapter.sync(
         makeGoogleSource(),
@@ -231,25 +218,17 @@ describe('GoogleSyncAdapter', () => {
   describe('fetchEvents pagination', () => {
     it('handles pagination by following nextPageToken', async () => {
       vi.mocked(requestUrl)
-        .mockResolvedValueOnce({
-          json: {
+        .mockResolvedValueOnce(makeResponse({
             items: [
               { id: 'e1', summary: 'Event 1', start: { dateTime: '2026-04-01T10:00:00Z' }, end: { dateTime: '2026-04-01T11:00:00Z' }, iCalUID: 'uid1' },
             ],
             nextPageToken: 'page2token',
-          },
-          text: '',
-          status: 200,
-        })
-        .mockResolvedValueOnce({
-          json: {
+          }, 200))
+        .mockResolvedValueOnce(makeResponse({
             items: [
               { id: 'e2', summary: 'Event 2', start: { dateTime: '2026-04-02T10:00:00Z' }, end: { dateTime: '2026-04-02T11:00:00Z' }, iCalUID: 'uid2' },
             ],
-          },
-          text: '',
-          status: 200,
-        });
+          }, 200));
 
       const events = await adapter.sync(
         makeGoogleSource(),
@@ -264,11 +243,7 @@ describe('GoogleSyncAdapter', () => {
     });
 
     it('passes singleEvents=true, orderBy=startTime, timeMin, timeMax, maxResults=2500', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { items: [] },
-        text: '',
-        status: 200,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ items: [] }, 200));
 
       const rangeStart = new Date('2026-04-01T00:00:00Z');
       const rangeEnd = new Date('2026-04-30T23:59:59Z');

@@ -12,8 +12,9 @@ export default tseslint.config(
 			parserOptions: {
 				projectService: {
 					allowDefaultProject: [
-						'eslint.config.js',
-						'manifest.json'
+						'eslint.config.mts',
+						'manifest.json',
+						'vitest.config.ts'
 					]
 				},
 				tsconfigRootDir: import.meta.dirname,
@@ -25,10 +26,18 @@ export default tseslint.config(
 	globalIgnores([
 		"node_modules",
 		"dist",
+		".gsd",
+		".planning",
+		".claude",
+		".bg-shell",
+		".github",
+		"package-lock.json",
 		"esbuild.config.mjs",
 		"eslint.config.js",
+		"eslint.config.mts",
 		"version-bump.mjs",
 		"versions.json",
 		"main.js",
+		"**/*.md",
 	]),
 );

@@ -5,6 +5,25 @@ import { GoogleAuthHelper, GoogleTokenError } from './GoogleAuthHelper';
 const CALENDAR_LIST_URL = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 const CALENDAR_EVENTS_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
 
+interface GoogleCalendarListResponse {
+  items?: GoogleCalendarEntry[];
+}
+
+interface GoogleCalendarApiEvent {
+  id: string;
+  summary?: string;
+  start: { dateTime?: string; date?: string };
+  end: { dateTime?: string; date?: string };
+  iCalUID?: string;
+  location?: string;
+  description?: string;
+}
+
+interface GoogleCalendarEventsResponse {
+  items?: GoogleCalendarApiEvent[];
+  nextPageToken?: string;
+}
+
 export interface GoogleCalendarEntry {
   id: string;
   summary: string;
@@ -26,8 +45,9 @@ export class GoogleSyncAdapter {
       headers: { 'Authorization': `Bearer ${accessToken}` },
     });
 
-    const items = response.json.items || [];
-    return items.map((item: { id: string; summary: string; primary?: boolean; backgroundColor?: string }) => ({
+    const payload = this.parseCalendarListResponse(response.json);
+    const items = payload.items ?? [];
+    return items.map((item) => ({
       id: item.id,
       summary: item.summary,
       primary: !!item.primary,
@@ -95,26 +115,9 @@ export class GoogleSyncAdapter {
       }
 
       const url = `${CALENDAR_EVENTS_BASE}/${encodeURIComponent(calendarId)}/events?${params.toString()}`;
-      let response;
-      try {
-        response = await requestUrl({
-          url,
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        });
-      } catch (cause) {
-        throw this.wrapGoogleApiError('获取 Google 日历事件失败，请检查网络后重试。', sourceName, calendarId, cause);
-      }
-
-      if (typeof response.status === 'number' && response.status >= 400) {
-        throw this.wrapGoogleApiError('获取 Google 日历事件失败，请稍后重试。', sourceName, calendarId, {
-          status: response.status,
-          json: response.json,
-        });
-      }
-
-      const json = response.json;
-      const items = json.items || [];
+      const response = await this.requestEventsPage(url, accessToken, sourceName, calendarId);
+      const json = this.parseEventsResponse(response.json);
+      const items = json.items ?? [];
       for (const item of items) {
         allEvents.push(this.toCalendarEvent(item, sourceId));
       }
@@ -123,6 +126,135 @@ export class GoogleSyncAdapter {
     } while (pageToken);
 
     return allEvents;
+  }
+
+  private async requestEventsPage(
+    url: string,
+    accessToken: string,
+    sourceName: string,
+    calendarId: string,
+  ): Promise<Awaited<ReturnType<typeof requestUrl>>> {
+    let response: Awaited<ReturnType<typeof requestUrl>>;
+    try {
+      response = await requestUrl({
+        url,
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${accessToken}` },
+      });
+    } catch (cause) {
+      throw this.wrapGoogleApiError('获取 Google 日历事件失败，请检查网络后重试。', sourceName, calendarId, cause);
+    }
+
+    if (typeof response.status === 'number' && response.status >= 400) {
+      const responseJson: unknown = response.json;
+      throw this.wrapGoogleApiError('获取 Google 日历事件失败，请稍后重试。', sourceName, calendarId, {
+        status: response.status,
+        json: responseJson,
+      });
+    }
+
+    return response;
+  }
+
+  private parseCalendarListResponse(json: unknown): GoogleCalendarListResponse {
+    if (!json || typeof json !== 'object') {
+      return {};
+    }
+
+    const record = json as Record<string, unknown>;
+    const rawItems = record['items'];
+    if (!Array.isArray(rawItems)) {
+      return {};
+    }
+
+    const items = rawItems.flatMap((item): GoogleCalendarEntry[] => {
+      if (!item || typeof item !== 'object') {
+        return [];
+      }
+
+      const recordItem = item as Record<string, unknown>;
+      const id = recordItem['id'];
+      const summary = recordItem['summary'];
+      const primary = recordItem['primary'];
+      const backgroundColor = recordItem['backgroundColor'];
+      if (typeof id !== 'string' || typeof summary !== 'string') {
+        return [];
+      }
+
+      return [{
+        id,
+        summary,
+        primary: primary === true,
+        backgroundColor: typeof backgroundColor === 'string' ? backgroundColor : undefined,
+      }];
+    });
+
+    return { items };
+  }
+
+  private parseEventsResponse(json: unknown): GoogleCalendarEventsResponse {
+    if (!json || typeof json !== 'object') {
+      return {};
+    }
+
+    const record = json as Record<string, unknown>;
+    const rawItems = record['items'];
+    const rawNextPageToken = record['nextPageToken'];
+    const items = Array.isArray(rawItems)
+      ? rawItems.flatMap((item): GoogleCalendarApiEvent[] => this.parseGoogleCalendarEvent(item))
+      : undefined;
+
+    return {
+      items,
+      nextPageToken: typeof rawNextPageToken === 'string' ? rawNextPageToken : undefined,
+    };
+  }
+
+  private parseGoogleCalendarEvent(value: unknown): GoogleCalendarApiEvent[] {
+    if (!value || typeof value !== 'object') {
+      return [];
+    }
+
+    const record = value as Record<string, unknown>;
+    const id = record['id'];
+    const start = this.parseEventBoundary(record['start']);
+    const end = this.parseEventBoundary(record['end']);
+    if (typeof id !== 'string' || !start || !end) {
+      return [];
+    }
+
+    const summary = record['summary'];
+    const iCalUID = record['iCalUID'];
+    const location = record['location'];
+    const description = record['description'];
+
+    return [{
+      id,
+      summary: typeof summary === 'string' ? summary : undefined,
+      start,
+      end,
+      iCalUID: typeof iCalUID === 'string' ? iCalUID : undefined,
+      location: typeof location === 'string' ? location : undefined,
+      description: typeof description === 'string' ? description : undefined,
+    }];
+  }
+
+  private parseEventBoundary(value: unknown): { dateTime?: string; date?: string } | null {
+    if (!value || typeof value !== 'object') {
+      return null;
+    }
+
+    const record = value as Record<string, unknown>;
+    const dateTime = record['dateTime'];
+    const date = record['date'];
+    if (typeof dateTime !== 'string' && typeof date !== 'string') {
+      return null;
+    }
+
+    return {
+      dateTime: typeof dateTime === 'string' ? dateTime : undefined,
+      date: typeof date === 'string' ? date : undefined,
+    };
   }
 
   private persistGoogleDiagnostic(source: CalendarSource, error: unknown): void {
@@ -212,7 +344,7 @@ export class GoogleSyncAdapter {
     if (!cause || typeof cause !== 'object') {
       return undefined;
     }
-    const value = Reflect.get(cause, 'status');
+    const value: unknown = Reflect.get(cause, 'status');
     return typeof value === 'number' ? value : undefined;
   }
 
@@ -230,7 +362,7 @@ export class GoogleSyncAdapter {
     if (!cause || typeof cause !== 'object') {
       return {};
     }
-    const value = Reflect.get(cause, 'json');
+    const value: unknown = Reflect.get(cause, 'json');
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
   }
 

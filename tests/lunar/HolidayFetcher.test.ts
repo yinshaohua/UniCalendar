@@ -113,7 +113,7 @@ describe('HolidayFetcher', () => {
 
    await fetcher.fetchYear(2026);
 
-   const calledUrl = mockRequestUrl.mock.calls[0][0];
+   const calledUrl = mockRequestUrl.mock.calls[0]?.[0];
    const url = typeof calledUrl === 'string' ? calledUrl : (calledUrl as { url: string }).url;
    expect(url).toContain('cdn.jsdelivr.net');
    expect(url).toContain('holiday-cn');

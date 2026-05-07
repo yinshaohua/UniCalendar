@@ -17,5 +17,11 @@ export class Setting {
 }
 export class Modal {}
 export class Notice {}
-export const requestUrl = vi.fn().mockResolvedValue({ json: {}, text: '', status: 200 });
+export const requestUrl = vi.fn().mockResolvedValue({
+  json: {},
+  text: '',
+  status: 200,
+  headers: {},
+  arrayBuffer: new ArrayBuffer(0),
+});
 export const Platform = { isDesktop: true, isMobile: false, isDesktopApp: true, isMobileApp: false };

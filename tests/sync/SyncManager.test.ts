@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach, type MockInstance } from 'vitest';
 import { SyncManager } from '../../src/sync/SyncManager';
 import { EventStore } from '../../src/store/EventStore';
 import { CalendarSource, SyncState } from '../../src/models/types';
@@ -16,7 +16,7 @@ function makeSource(overrides: Partial<CalendarSource> = {}): CalendarSource {
 }
 
 describe('SyncManager', () => {
-  let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+  let consoleErrorSpy: MockInstance;
 
   beforeEach(() => {
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});

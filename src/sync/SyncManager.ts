@@ -58,15 +58,15 @@ export class SyncManager {
         if (source.type === 'ics') {
           const events = await this.icsAdapter.sync(source, rangeStart, rangeEnd);
           this.eventStore.replaceEvents(source.id, events);
-          console.log(`[UniCalendar] Synced ${events.length} events from ICS source "${source.name}"`);
+          console.debug(`[UniCalendar] Synced ${events.length} events from ICS source "${source.name}"`);
         } else if (source.type === 'caldav') {
           const events = await this.caldavAdapter.sync(source, rangeStart, rangeEnd);
           this.eventStore.replaceEvents(source.id, events);
-          console.log(`[UniCalendar] Synced ${events.length} events from CalDAV source "${source.name}"`);
+          console.debug(`[UniCalendar] Synced ${events.length} events from CalDAV source "${source.name}"`);
         } else if (source.type === 'google') {
           const events = await this.googleAdapter.sync(source, rangeStart, rangeEnd);
           this.eventStore.replaceEvents(source.id, events);
-          console.log(`[UniCalendar] Synced ${events.length} events from Google source "${source.name}"`);
+          console.debug(`[UniCalendar] Synced ${events.length} events from Google source "${source.name}"`);
         } else {
           console.warn(`[UniCalendar] Source "${source.name}" type "${String(source.type)}" is not yet supported.`);
         }

@@ -1,3 +1,4 @@
+/* eslint-disable import/no-nodejs-modules */
 import * as http from 'http';
 
 const TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes

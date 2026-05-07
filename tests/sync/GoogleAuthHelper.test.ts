@@ -1,8 +1,22 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { requestUrl } from 'obsidian';
+import { requestUrl, type RequestUrlResponse } from 'obsidian';
 import { GoogleAuthHelper, GoogleTokenError } from '../../src/sync/GoogleAuthHelper';
 
 vi.mock('obsidian');
+
+function makeResponse(json: unknown, status = 200, text = ''): RequestUrlResponse {
+  return {
+    json,
+    text,
+    status,
+    headers: {},
+    arrayBuffer: new ArrayBuffer(0),
+  } as RequestUrlResponse;
+}
+
+function makeRejectedRequestError(value: unknown): unknown {
+  return value;
+}
 
 describe('GoogleAuthHelper', () => {
   let helper: GoogleAuthHelper;
@@ -10,7 +24,7 @@ describe('GoogleAuthHelper', () => {
   beforeEach(() => {
     helper = new GoogleAuthHelper({ retryDelayMs: 0 });
     vi.mocked(requestUrl).mockReset();
-    vi.mocked(requestUrl).mockResolvedValue({ json: {}, text: '', status: 200 });
+    vi.mocked(requestUrl).mockResolvedValue(makeResponse({}, 200));
   });
 
   describe('buildAuthUrl', () => {
@@ -44,15 +58,11 @@ describe('GoogleAuthHelper', () => {
 
   describe('exchangeCode', () => {
     it('sends POST with grant_type=authorization_code and returns tokens', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({
           access_token: 'new-access-token',
           refresh_token: 'new-refresh-token',
           expires_in: 3600,
-        },
-        text: '',
-        status: 200,
-      });
+        }, 200));
 
       const result = await helper.exchangeCode(
         'auth-code',
@@ -73,11 +83,7 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('includes code_verifier in the request body', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { access_token: 'at', refresh_token: 'rt', expires_in: 3600 },
-        text: '',
-        status: 200,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ access_token: 'at', refresh_token: 'rt', expires_in: 3600 }, 200));
 
       await helper.exchangeCode('code', 'cid', 'cs', 'http://localhost', 'my-verifier');
 
@@ -88,11 +94,7 @@ describe('GoogleAuthHelper', () => {
 
   describe('refreshAccessToken', () => {
     it('sends POST with grant_type=refresh_token and returns new token without refreshToken', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { access_token: 'refreshed-token', expires_in: 3600 },
-        text: '',
-        status: 200,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ access_token: 'refreshed-token', expires_in: 3600 }, 200));
 
       const result = await helper.refreshAccessToken('rt', 'cid', 'cs');
 
@@ -107,11 +109,7 @@ describe('GoogleAuthHelper', () => {
     it('retries once for retryable network failures', async () => {
       vi.mocked(requestUrl)
         .mockRejectedValueOnce(new Error('socket hang up'))
-        .mockResolvedValueOnce({
-          json: { access_token: 'retry-token', expires_in: 3600 },
-          text: '',
-          status: 200,
-        });
+        .mockResolvedValueOnce(makeResponse({ access_token: 'retry-token', expires_in: 3600 }, 200));
 
       const result = await helper.refreshAccessToken('rt', 'cid', 'cs');
 
@@ -120,11 +118,7 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('throws invalid_grant as reauth-required token error', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { error: 'invalid_grant', error_description: 'Token has been expired or revoked.' },
-        text: '',
-        status: 400,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ error: 'invalid_grant', error_description: 'Token has been expired or revoked.' }, 400));
 
       await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
         name: 'GoogleTokenError',
@@ -135,16 +129,12 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('parses nested OAuth error objects returned with status 400', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({
           error: {
             error: 'invalid_grant',
             message: 'Token has been expired or revoked',
           },
-        },
-        text: '',
-        status: 400,
-      });
+        }, 400));
 
       await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
         name: 'GoogleTokenError',
@@ -155,12 +145,9 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('parses token errors from response text when json payload is empty', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {},
-        text: '{"error":"invalid_grant","error_description":"Token has been expired or revoked"}',
-        status: 400,
-        headers: { 'content-type': 'application/json; charset=utf-8' },
-      } as never);
+      vi.mocked(requestUrl).mockResolvedValueOnce(
+        makeResponse({}, 400, '{"error":"invalid_grant","error_description":"Token has been expired or revoked"}'),
+      );
 
       await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
         name: 'GoogleTokenError',
@@ -171,12 +158,7 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('preserves sanitized response text for unknown 400 diagnostics', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: {},
-        text: '<html><body>bad request from upstream proxy</body></html>',
-        status: 400,
-        headers: { 'content-type': 'text/html' },
-      } as never);
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({}, 400, '<html><body>bad request from upstream proxy</body></html>'));
 
       await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
         name: 'GoogleTokenError',
@@ -198,12 +180,12 @@ describe('GoogleAuthHelper', () => {
         name: 'GoogleTokenError',
         kind: 'unknown',
         status: 400,
-        apiErrorDescription: expect.stringContaining('name=RequestUrlError'),
+        userMessage: 'Google 令牌刷新失败，请稍后重试；若持续失败再重新授权。',
       });
     });
 
     it('maps thrown refresh 400 without body to invalid_grant-style reauth guidance', async () => {
-      vi.mocked(requestUrl).mockRejectedValue({
+      vi.mocked(requestUrl).mockRejectedValue(makeRejectedRequestError({
         name: 'Error',
         message: 'Request failed, status 400',
         status: 400,
@@ -211,7 +193,7 @@ describe('GoogleAuthHelper', () => {
           'content-type': 'application/json; charset=UTF-8',
           'www-authenticate': 'Bearer realm="https://accounts.google.com/"',
         },
-      });
+      }));
 
       await expect(helper.refreshAccessToken('bad-rt', 'cid', 'cs')).rejects.toMatchObject({
         name: 'GoogleTokenError',
@@ -234,11 +216,7 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('throws invalid_client with configuration guidance', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { error: 'invalid_client', error_description: 'Unauthorized' },
-        text: '',
-        status: 401,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ error: 'invalid_client', error_description: 'Unauthorized' }, 401));
 
       await expect(helper.refreshAccessToken('rt', 'cid', 'cs')).rejects.toMatchObject({
         name: 'GoogleTokenError',
@@ -265,11 +243,7 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('calls refresh if token expires within 5 minutes', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { access_token: 'new-token', expires_in: 3600 },
-        text: '',
-        status: 200,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ access_token: 'new-token', expires_in: 3600 }, 200));
 
       const google = {
         clientId: 'cid',
@@ -286,11 +260,7 @@ describe('GoogleAuthHelper', () => {
     });
 
     it('propagates structured token errors for caller diagnostics', async () => {
-      vi.mocked(requestUrl).mockResolvedValueOnce({
-        json: { error: 'invalid_grant', error_description: 'Token revoked' },
-        text: '',
-        status: 400,
-      });
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ error: 'invalid_grant', error_description: 'Token revoked' }, 400));
 
       const google = {
         clientId: 'cid',

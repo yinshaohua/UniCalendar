@@ -34,7 +34,7 @@ describe('SettingsTab Google formatters', () => {
       ],
     });
 
-    expect(formatGoogleSelectionSummary(source)).toBe('已选日历 (2): 主日历, 工作');
+    expect(formatGoogleSelectionSummary(source)).toBe('已选日历（2）: 主日历, 工作');
   });
 
   it('falls back to legacy single calendar summary', () => {
