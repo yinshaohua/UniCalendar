@@ -113,4 +113,60 @@ describe('deduplicateEvents', () => {
     expect(result).toHaveLength(1);
     expect(result[0]!.title).toBe('Original Title');
   });
+
+  it('deduplicates same-source recurrence instance against base event when uid/start/end/title match exactly', () => {
+    const events: CalendarEvent[] = [
+      makeEvent({
+        id: 'ding::uid-1::20260507T080000',
+        sourceId: 'ding',
+        uid: 'uid-1',
+        title: '项目推进会',
+        start: '2026-05-07T00:00:00.000Z',
+        end: '2026-05-07T01:00:00.000Z',
+        recurrenceId: '20260507T080000',
+      }),
+      makeEvent({
+        id: 'ding::uid-1',
+        sourceId: 'ding',
+        uid: 'uid-1',
+        title: '项目推进会',
+        start: '2026-05-07T00:00:00.000Z',
+        end: '2026-05-07T01:00:00.000Z',
+        location: 'https://meeting.dingtalk.com/j/cJ0c0H3qgAr',
+      }),
+    ];
+
+    const result = deduplicateEvents(events, ['ding']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.location).toBe('https://meeting.dingtalk.com/j/cJ0c0H3qgAr');
+    expect(result[0]!.recurrenceId).toBeUndefined();
+  });
+
+  it('does not deduplicate same-source recurring instances with different start times', () => {
+    const events: CalendarEvent[] = [
+      makeEvent({
+        id: 'ding::uid-1::20260507T080000',
+        sourceId: 'ding',
+        uid: 'uid-1',
+        title: '项目推进会',
+        start: '2026-05-07T00:00:00.000Z',
+        end: '2026-05-07T01:00:00.000Z',
+        recurrenceId: '20260507T080000',
+      }),
+      makeEvent({
+        id: 'ding::uid-1::20260514T080000',
+        sourceId: 'ding',
+        uid: 'uid-1',
+        title: '项目推进会',
+        start: '2026-05-14T00:00:00.000Z',
+        end: '2026-05-14T01:00:00.000Z',
+        recurrenceId: '20260514T080000',
+      }),
+    ];
+
+    const result = deduplicateEvents(events, ['ding']);
+
+    expect(result).toHaveLength(2);
+  });
 });
