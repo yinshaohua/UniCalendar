@@ -1,90 +1,99 @@
-# Obsidian Sample Plugin
+# UniCalendar
 
-This is a sample plugin for Obsidian (https://obsidian.md).
+A unified calendar view for [Obsidian](https://obsidian.md) that aggregates events from Google Calendar, CalDAV servers, and ICS feeds into a single month view — with Chinese lunar calendar, solar terms, and public holiday annotations.
 
-This project uses TypeScript to provide type checking and documentation.
-The repo depends on the latest plugin API (obsidian.d.ts) in TypeScript Definition format, which contains TSDoc comments describing what it does.
+![UniCalendar screenshot](docs/screenshot.png)
 
-This sample plugin demonstrates some of the basic functionality the plugin API can do.
-- Adds a ribbon icon, which shows a Notice when clicked.
-- Adds a command "Open modal (simple)" which opens a Modal.
-- Adds a plugin setting tab to the settings page.
-- Registers a global click event and output 'click' to the console.
-- Registers a global interval which logs 'setInterval' to the console.
+## Features
 
-## First time developing plugins?
+- **Unified month view** — see all your calendar sources in one place, color-coded by source
+- **Google Calendar sync** — OAuth 2.0 PKCE flow, no server required; supports multiple calendars per account
+- **CalDAV sync** — connect to Nextcloud, iCloud, Fastmail, or any CalDAV-compatible server
+- **ICS feed sync** — subscribe to any public or private `.ics` URL
+- **Chinese lunar calendar** — lunar dates, traditional festivals (春节, 端午, 中秋…), and 24 solar terms displayed in each cell
+- **Public holiday overlay** — statutory holidays and adjusted workdays (补班) sourced from [holiday-cn](https://github.com/NateScarlet/holiday-cn)
+- **Event deduplication** — events shared across sources are shown once, with configurable source priority
+- **Auto-sync** — configurable sync interval (default 30 minutes); manual sync available via command palette
+- **Mobile compatible** — works on iOS and Android (`isDesktopOnly: false`)
 
-Quick starting guide for new plugin devs:
+## Installation
 
-- Check if [someone already developed a plugin for what you want](https://obsidian.md/plugins)! There might be an existing plugin similar enough that you can partner up with.
-- Make a copy of this repo as a template with the "Use this template" button (login to GitHub if you don't see it).
-- Clone your repo to a local development folder. For convenience, you can place this folder in your `.obsidian/plugins/your-plugin-name` folder.
-- Install NodeJS, then run `npm i` in the command line under your repo folder.
-- Run `npm run dev` to compile your plugin from `main.ts` to `main.js`.
-- Make changes to `main.ts` (or create new `.ts` files). Those changes should be automatically compiled into `main.js`.
-- Reload Obsidian to load the new version of your plugin.
-- Enable plugin in settings window.
-- For updates to the Obsidian API run `npm update` in the command line under your repo folder.
+### From Obsidian community plugins (recommended)
 
-## Releasing new releases
+1. Open **Settings → Community plugins → Browse**
+2. Search for **UniCalendar**
+3. Select **Install**, then **Enable**
 
-- Update your `manifest.json` with your new version number, such as `1.0.1`, and the minimum Obsidian version required for your latest release.
-- Update your `versions.json` file with `"new-plugin-version": "minimum-obsidian-version"` so older versions of Obsidian can download an older version of your plugin that's compatible.
-- Create new GitHub release using your new version number as the "Tag version". Use the exact version number, don't include a prefix `v`. See here for an example: https://github.com/obsidianmd/obsidian-sample-plugin/releases
-- Upload the files `manifest.json`, `main.js`, `styles.css` as binary attachments. Note: The manifest.json file must be in two places, first the root path of your repository and also in the release.
-- Publish the release.
+### Manual installation
 
-> You can simplify the version bump process by running `npm version patch`, `npm version minor` or `npm version major` after updating `minAppVersion` manually in `manifest.json`.
-> The command will bump version in `manifest.json` and `package.json`, and add the entry for the new version to `versions.json`
+1. Download `main.js`, `manifest.json`, and `styles.css` from the [latest release](https://github.com/yinsh/UniCalendar/releases/latest)
+2. Copy the three files to `<Vault>/.obsidian/plugins/uni-calendar/`
+3. Reload Obsidian and enable the plugin in **Settings → Community plugins**
 
-## Adding your plugin to the community plugin list
+## Configuration
 
-- Check the [plugin guidelines](https://docs.obsidian.md/Plugins/Releasing/Plugin+guidelines).
-- Publish an initial version.
-- Make sure you have a `README.md` file in the root of your repo.
-- Make a pull request at https://github.com/obsidianmd/obsidian-releases to add your plugin.
+Open **Settings → UniCalendar** to configure calendar sources.
 
-## How to use
+### Add a Google Calendar source
 
-- Clone this repo.
-- Make sure your NodeJS is at least v16 (`node --version`).
-- `npm i` or `yarn` to install dependencies.
-- `npm run dev` to start compilation in watch mode.
+1. Select **Add source → Google Calendar**
+2. Enter your Google OAuth client ID and client secret (see [Google Cloud Console](https://console.cloud.google.com/))
+3. Select **Authorize** — a browser window opens for the OAuth flow
+4. After authorization, select which calendars to include
 
-## Manually installing the plugin
+### Add a CalDAV source
 
-- Copy over `main.js`, `styles.css`, `manifest.json` to your vault `VaultFolder/.obsidian/plugins/your-plugin-id/`.
+1. Select **Add source → CalDAV**
+2. Enter the server URL, username, and password
+3. Select **Discover calendars** to list available calendars
 
-## Improve code quality with eslint
-- [ESLint](https://eslint.org/) is a tool that analyzes your code to quickly find problems. You can run ESLint against your plugin to find common bugs and ways to improve your code. 
-- This project already has eslint preconfigured, you can invoke a check by running`npm run lint`
-- Together with a custom eslint [plugin](https://github.com/obsidianmd/eslint-plugin) for Obsidan specific code guidelines.
-- A GitHub action is preconfigured to automatically lint every commit on all branches.
+### Add an ICS feed
 
-## Funding URL
+1. Select **Add source → ICS feed**
+2. Paste the ICS URL
+3. Optionally set a display name and color
 
-You can include funding URLs where people who use your plugin can financially support it.
+### Other settings
 
-The simple way is to set the `fundingUrl` field to your link in your `manifest.json` file:
+| Setting | Default | Description |
+|---|---|---|
+| Sync interval | 30 min | How often to auto-sync all sources |
+| Show lunar calendar | On | Display lunar dates and festivals in month cells |
+| Show holidays | On | Overlay public holiday and workday annotations |
+| Month overflow mode | Collapse | How to handle cells with more events than fit |
 
-```json
-{
-    "fundingUrl": "https://buymeacoffee.com"
-}
+## Usage
+
+- Select the **calendar icon** in the ribbon to open the calendar view
+- Use the **command palette** (`Ctrl/Cmd+P`) and search for **Open calendar**
+- Navigate months with the `<` and `>` arrows in the view header
+- Select any event to see its full details
+
+## Privacy
+
+UniCalendar operates entirely locally. Calendar credentials are stored in your vault's plugin data file (`<Vault>/.obsidian/plugins/uni-calendar/data.json`). No data is sent to any third-party service other than the calendar providers you explicitly configure. Holiday data is fetched from the [jsdelivr CDN](https://cdn.jsdelivr.net/gh/NateScarlet/holiday-cn) on first load and cached locally.
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Watch mode (auto-recompile on save)
+npm run dev
+
+# Production build
+npm run build
+
+# Run tests
+npm test
+
+# Lint
+npm run lint
 ```
 
-If you have multiple URLs, you can also do:
+Copy `main.js`, `manifest.json`, and `styles.css` to `<Vault>/.obsidian/plugins/uni-calendar/` and reload Obsidian to test locally.
 
-```json
-{
-    "fundingUrl": {
-        "Buy Me a Coffee": "https://buymeacoffee.com",
-        "GitHub Sponsor": "https://github.com/sponsors",
-        "Patreon": "https://www.patreon.com/"
-    }
-}
-```
+## License
 
-## API Documentation
-
-See https://docs.obsidian.md
+[0-BSD](LICENSE)
