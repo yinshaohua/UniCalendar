@@ -62,6 +62,13 @@ export type SyncState =
   | { status: 'syncing'; startedAt: number }
   | { status: 'error'; message: string; lastSyncTime: number | null };
 
+export interface EventTitleFilterRule {
+  id: string;
+  pattern: string;
+  mode: 'equals' | 'contains';
+  enabled: boolean;
+}
+
 export interface UniCalendarSettings {
   sources: CalendarSource[];
   syncInterval: number;          // minutes
@@ -69,6 +76,7 @@ export interface UniCalendarSettings {
   monthOverflowMode: 'expand' | 'collapse';
   showLunarCalendar: boolean;    // D-12: show lunar dates, festivals, solar terms in month view
   showHolidays: boolean;         // D-12: show holiday/workday backgrounds and badges
+  eventTitleFilters: EventTitleFilterRule[];
 }
 
 export interface EventCache {
@@ -141,6 +149,7 @@ export const DEFAULT_SETTINGS: UniCalendarSettings = {
   monthOverflowMode: 'expand',
   showLunarCalendar: true,
   showHolidays: true,
+  eventTitleFilters: [],
 };
 
 export const DEFAULT_CACHE: EventCache = {

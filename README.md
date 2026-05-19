@@ -57,10 +57,26 @@ Open **Settings → UniCalendar** to configure calendar sources.
 
 | Setting | Default | Description |
 |---|---|---|
-| Sync interval | 30 min | How often to auto-sync all sources |
+| Sync interval | 15 min | How often to auto-sync all sources |
 | Show lunar calendar | On | Display lunar dates and festivals in month cells |
 | Show holidays | On | Overlay public holiday and workday annotations |
-| Month overflow mode | Collapse | How to handle cells with more events than fit |
+| Month overflow mode | Expand | How to handle cells with more events than fit |
+
+### Event title filters
+
+Use **Settings → UniCalendar → Event title filters** to hide noisy events across **all** calendar sources without deleting the underlying event data.
+
+Each rule supports two modes:
+
+- **Hide when title exactly matches** — useful for suppressing one recurring event name only
+- **Hide when title contains the string** — useful for suppressing classes of events by keyword
+
+Examples:
+
+- Input `WaytoAGI晚8点共学` with **exact match** hides only events whose title is exactly `WaytoAGI晚8点共学`
+- Input `WaytoAGI` with **contains** hides any event whose title contains `WaytoAGI`
+
+Matching is case-insensitive and ignores leading/trailing or repeated whitespace.
 
 ## Usage
 

@@ -191,6 +191,75 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
+    addSettingHeading(containerEl, '事件标题过滤');
+
+    if (this.plugin.settings.eventTitleFilters.length === 0) {
+      containerEl.createEl('p', {
+        text: '尚未配置过滤规则。可按标题完全相等或标题包含关键字来隐藏事件。',
+        cls: 'setting-item-description',
+      });
+    }
+
+    for (const rule of this.plugin.settings.eventTitleFilters) {
+      const setting = new Setting(containerEl)
+        .setName('标题过滤规则')
+        .setDesc('对所有日历源生效；命中的事件将不显示。');
+
+      setting.addText(text => text
+        .setPlaceholder('输入要匹配的标题或关键字')
+        .setValue(rule.pattern)
+        .onChange(async (value) => {
+          rule.pattern = value;
+          await this.plugin.saveSettings();
+        }));
+
+      setting.addDropdown(dropdown => dropdown
+        .addOptions({
+          equals: '标题完全相等时隐藏',
+          contains: '标题包含该字符串时隐藏',
+        })
+        .setValue(rule.mode)
+        .onChange(async (value) => {
+          rule.mode = value as 'equals' | 'contains';
+          await this.plugin.saveSettings();
+        }));
+
+      setting.addToggle(toggle => toggle
+        .setTooltip('启用/禁用规则')
+        .setValue(rule.enabled)
+        .onChange(async (value) => {
+          rule.enabled = value;
+          await this.plugin.saveSettings();
+        }));
+
+      setting.addExtraButton(btn => btn
+        .setIcon('trash')
+        .setTooltip('删除规则')
+        .onClick(() => {
+          void (async () => {
+            this.plugin.settings.eventTitleFilters = this.plugin.settings.eventTitleFilters.filter(item => item.id !== rule.id);
+            await this.plugin.saveSettings();
+            this.display();
+          })();
+        }));
+    }
+
+    new Setting(containerEl)
+      .addButton(btn => btn
+        .setButtonText('新增标题过滤规则')
+        .onClick(() => {
+          void (async () => {
+            this.plugin.settings.eventTitleFilters.push({
+              id: crypto.randomUUID(),
+              pattern: '',
+              mode: 'contains',
+              enabled: true,
+            });
+            await this.plugin.saveSettings();
+            this.display();
+          })();
+        }));
+
     addSettingHeading(containerEl, '日历源');
 
     if (this.plugin.settings.sources.length === 0) {

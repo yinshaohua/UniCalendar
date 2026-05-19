@@ -32,6 +32,8 @@ export default class UniCalendarPlugin extends Plugin {
 
     this.eventStore = new EventStore();
     this.eventStore.load(this.eventCache);
+    this.eventStore.setSourceOrder(this.settings.sources.map(s => s.id));
+    this.eventStore.setTitleFilters(this.settings.eventTitleFilters);
 
     this.syncManager = new SyncManager((state) => this.onSyncStateChange(state), this.eventStore);
 
@@ -102,6 +104,8 @@ export default class UniCalendarPlugin extends Plugin {
   }
 
   async saveSettings(): Promise<void> {
+    this.eventStore.setSourceOrder(this.settings.sources.map(s => s.id));
+    this.eventStore.setTitleFilters(this.settings.eventTitleFilters);
     await this.savePluginData();
     this.registerSyncInterval();
     // Update all open calendar views
@@ -118,6 +122,7 @@ export default class UniCalendarPlugin extends Plugin {
   async triggerSync(): Promise<void> {
     try {
       this.eventStore.setSourceOrder(this.settings.sources.map(s => s.id));
+      this.eventStore.setTitleFilters(this.settings.eventTitleFilters);
       await this.syncManager.syncAll(this.settings.sources);
       await this.savePluginData();
       this.refreshCalendarViews();

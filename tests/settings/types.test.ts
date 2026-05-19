@@ -55,6 +55,10 @@ describe('DEFAULT_SETTINGS', () => {
   it('has showHolidays defaulting to true', () => {
     expect(DEFAULT_SETTINGS.showHolidays).toBe(true);
   });
+
+  it('has eventTitleFilters defaulting to empty array', () => {
+    expect(DEFAULT_SETTINGS.eventTitleFilters).toEqual([]);
+  });
 });
 
 describe('DEFAULT_CACHE', () => {
