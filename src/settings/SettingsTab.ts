@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Platform, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { CalendarSource, GoogleSyncDiagnostic, UniCalendarSettings, getNextColor, RECOMMENDED_PALETTE, formatGoogleTokenFingerprint } from '../models/types';
+import { CalendarSource, GoogleSyncDiagnostic, UniCalendarSettings, EventTitleFilterRule, getNextColor, RECOMMENDED_PALETTE, formatGoogleTokenFingerprint } from '../models/types';
 import { CalDavSyncAdapter, DiscoveredCalendar } from '../sync/CalDavSyncAdapter';
 import { IcsSyncAdapter } from '../sync/IcsSyncAdapter';
 import { GoogleAuthHelper, GoogleTokenError } from '../sync/GoogleAuthHelper';
@@ -117,6 +117,18 @@ function createLabelRow(containerEl: HTMLElement): HTMLElement {
   });
 }
 
+function formatTitleFilterSummary(rules: EventTitleFilterRule[]): string {
+  const activeRules = rules.filter(rule => rule.enabled && rule.pattern.trim().length > 0);
+  if (activeRules.length === 0) {
+    return '未配置';
+  }
+
+  return activeRules.map(rule => {
+    const modeLabel = rule.mode === 'equals' ? '完全相等' : '标题包含';
+    return `${modeLabel}: ${rule.pattern.trim()}`;
+  }).join('；');
+}
+
 function renderSelectionLabel(
   containerEl: HTMLElement,
   text: string,
@@ -191,74 +203,20 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
         }));
 
-    addSettingHeading(containerEl, '事件标题过滤');
+    const filterHeaderRow = containerEl.createDiv({ cls: 'setting-item' });
+    filterHeaderRow.addClass('uni-calendar-filter-header-row');
+    filterHeaderRow.createEl('div', {
+      text: '事件标题过滤',
+      cls: 'setting-item-name',
+    });
+    const filterButtonWrap = filterHeaderRow.createDiv({ cls: 'setting-item-control' });
+    const filterConfigBtn = filterButtonWrap.createEl('button', { text: '配置', cls: 'mod-cta' });
+    filterConfigBtn.addEventListener('click', () => {
+      new EditTitleFiltersModal(this.app, this.plugin, () => this.display()).open();
+    });
 
-    if (this.plugin.settings.eventTitleFilters.length === 0) {
-      containerEl.createEl('p', {
-        text: '尚未配置过滤规则。可按标题完全相等或标题包含关键字来隐藏事件。',
-        cls: 'setting-item-description',
-      });
-    }
-
-    for (const rule of this.plugin.settings.eventTitleFilters) {
-      const setting = new Setting(containerEl)
-        .setName('标题过滤规则')
-        .setDesc('对所有日历源生效；命中的事件将不显示。');
-
-      setting.addText(text => text
-        .setPlaceholder('输入要匹配的标题或关键字')
-        .setValue(rule.pattern)
-        .onChange(async (value) => {
-          rule.pattern = value;
-          await this.plugin.saveSettings();
-        }));
-
-      setting.addDropdown(dropdown => dropdown
-        .addOptions({
-          equals: '标题完全相等时隐藏',
-          contains: '标题包含该字符串时隐藏',
-        })
-        .setValue(rule.mode)
-        .onChange(async (value) => {
-          rule.mode = value as 'equals' | 'contains';
-          await this.plugin.saveSettings();
-        }));
-
-      setting.addToggle(toggle => toggle
-        .setTooltip('启用/禁用规则')
-        .setValue(rule.enabled)
-        .onChange(async (value) => {
-          rule.enabled = value;
-          await this.plugin.saveSettings();
-        }));
-
-      setting.addExtraButton(btn => btn
-        .setIcon('trash')
-        .setTooltip('删除规则')
-        .onClick(() => {
-          void (async () => {
-            this.plugin.settings.eventTitleFilters = this.plugin.settings.eventTitleFilters.filter(item => item.id !== rule.id);
-            await this.plugin.saveSettings();
-            this.display();
-          })();
-        }));
-    }
-
-    new Setting(containerEl)
-      .addButton(btn => btn
-        .setButtonText('新增标题过滤规则')
-        .onClick(() => {
-          void (async () => {
-            this.plugin.settings.eventTitleFilters.push({
-              id: crypto.randomUUID(),
-              pattern: '',
-              mode: 'contains',
-              enabled: true,
-            });
-            await this.plugin.saveSettings();
-            this.display();
-          })();
-        }));
+    const filterSummaryLabel = createLabelRow(containerEl);
+    renderSelectionLabel(filterSummaryLabel, `当前规则: ${formatTitleFilterSummary(this.plugin.settings.eventTitleFilters)}`);
 
     addSettingHeading(containerEl, '日历源');
 
@@ -365,6 +323,105 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
           await this.plugin.saveSettings();
           this.plugin.refreshCalendarViews();
         }));
+  }
+}
+
+class EditTitleFiltersModal extends Modal {
+  private plugin: UniCalendarPlugin;
+  private onDone: () => void;
+  private draftRules: EventTitleFilterRule[];
+
+  constructor(app: App, plugin: UniCalendarPlugin, onDone: () => void) {
+    super(app);
+    this.plugin = plugin;
+    this.onDone = onDone;
+    this.draftRules = plugin.settings.eventTitleFilters.map(rule => ({ ...rule }));
+  }
+
+  onOpen(): void {
+    this.titleEl.setText('配置标题过滤规则');
+    this.render();
+  }
+
+  onClose(): void {
+    this.contentEl.empty();
+  }
+
+  private render(): void {
+    const { contentEl } = this;
+    contentEl.empty();
+
+    if (this.draftRules.length === 0) {
+      contentEl.createEl('p', {
+        text: '尚未配置规则。',
+        cls: 'setting-item-description',
+      });
+    }
+
+    this.draftRules.forEach((rule) => {
+      const setting = new Setting(contentEl);
+
+      setting.addText(text => text
+        .setPlaceholder('输入要匹配的标题或关键字')
+        .setValue(rule.pattern)
+        .onChange((value) => {
+          rule.pattern = value;
+        }));
+
+      setting.addDropdown(dropdown => dropdown
+        .addOptions({
+          equals: '标题完全相等时隐藏',
+          contains: '标题包含该字符串时隐藏',
+        })
+        .setValue(rule.mode)
+        .onChange((value) => {
+          rule.mode = value as 'equals' | 'contains';
+        }));
+
+      setting.addToggle(toggle => toggle
+        .setTooltip('启用/禁用规则')
+        .setValue(rule.enabled)
+        .onChange((value) => {
+          rule.enabled = value;
+        }));
+
+      setting.addExtraButton(btn => btn
+        .setIcon('trash')
+        .setTooltip('删除规则')
+        .onClick(() => {
+          this.draftRules = this.draftRules.filter(item => item.id !== rule.id);
+          this.render();
+        }));
+    });
+
+    new Setting(contentEl)
+      .addButton(btn => btn
+        .setButtonText('新增规则')
+        .onClick(() => {
+          this.draftRules.push({
+            id: crypto.randomUUID(),
+            pattern: '',
+            mode: 'contains',
+            enabled: true,
+          });
+          this.render();
+        }))
+      .addButton(btn => btn
+        .setButtonText('保存并生效')
+        .setCta()
+        .onClick(() => {
+          void this.saveAndClose();
+        }));
+  }
+
+  private async saveAndClose(): Promise<void> {
+    this.plugin.settings.eventTitleFilters = this.draftRules
+      .map(rule => ({ ...rule, pattern: rule.pattern.trim() }))
+      .filter(rule => rule.pattern.length > 0);
+    await this.plugin.saveSettings();
+    this.onDone();
+    this.close();
+    new Notice('标题过滤规则已保存');
   }
 }
 
