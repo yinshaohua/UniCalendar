@@ -4,6 +4,17 @@ function normalizeTitle(title: string): string {
   return title.trim().toLowerCase();
 }
 
+function titlesOverlap(a: string, b: string): boolean {
+  const left = normalizeTitle(a);
+  const right = normalizeTitle(b);
+
+  if (!left || !right) {
+    return false;
+  }
+
+  return left === right || left.includes(right) || right.includes(left);
+}
+
 function hasMeetingLink(value: string | undefined): boolean {
   return !!value && /https?:\/\/meeting\./i.test(value);
 }
@@ -16,20 +27,27 @@ function informationScore(event: CalendarEvent): number {
   if (hasMeetingLink(event.location)) score += 3;
   if (hasMeetingLink(event.description)) score += 3;
   if (!event.recurrenceId) score += 1;
+  score += normalizeTitle(event.title).length / 1000;
 
   return score;
 }
 
 function sameSourceMergeKey(event: CalendarEvent): string | null {
-  if (!event.uid) {
-    return null;
+  if (event.uid) {
+    return [
+      'uid',
+      event.sourceId,
+      event.uid,
+      event.start,
+      event.end,
+      normalizeTitle(event.title),
+    ].join('||');
   }
 
   return [
+    'time-title',
     event.sourceId,
-    event.uid,
     event.start,
-    event.end,
     normalizeTitle(event.title),
   ].join('||');
 }
@@ -45,6 +63,8 @@ function preferRicherEvent(existing: CalendarEvent, incoming: CalendarEvent): Ca
  * Per D-10: UID exact match first, then exact start + normalized title fallback.
  * Additionally merges same-source duplicate instances when they are the same event
  * occurrence and one variant carries richer metadata (for example meeting links).
+ * Same-source duplicates without UID are also merged when the source, exact start time,
+ * and normalized title match; the richer event wins.
  */
 export function deduplicateEvents(
   events: CalendarEvent[],
@@ -59,8 +79,9 @@ export function deduplicateEvents(
   });
 
   const seenUids = new Map<string, string>();
-  const seenTimeTitleKeys = new Map<string, string>();
+  const seenTimeTitleClaims: Array<{ start: string; title: string; sourceId: string }> = [];
   const sameSourceMerged = new Map<string, CalendarEvent>();
+  const sameSourceTimeTitleMerged: CalendarEvent[] = [];
   const result: CalendarEvent[] = [];
 
   for (const event of sorted) {
@@ -78,6 +99,27 @@ export function deduplicateEvents(
       }
     }
 
+    const sameSourceTimeTitleExisting = sameSourceTimeTitleMerged.find((existing) => (
+      existing.sourceId === event.sourceId
+      && existing.start === event.start
+      && titlesOverlap(existing.title, event.title)
+    ));
+    if (sameSourceTimeTitleExisting) {
+      const preferred = preferRicherEvent(sameSourceTimeTitleExisting, event);
+      const existingIndex = result.findIndex((item) => item.id === sameSourceTimeTitleExisting.id);
+      if (existingIndex >= 0) {
+        result[existingIndex] = preferred;
+      }
+      const mergedIndex = sameSourceTimeTitleMerged.findIndex((item) => item.id === sameSourceTimeTitleExisting.id);
+      if (mergedIndex >= 0) {
+        sameSourceTimeTitleMerged[mergedIndex] = preferred;
+      }
+      if (mergeKey) {
+        sameSourceMerged.set(mergeKey, preferred);
+      }
+      continue;
+    }
+
     let dominated = false;
 
     if (event.uid) {
@@ -90,17 +132,21 @@ export function deduplicateEvents(
     }
 
     if (!dominated) {
-      const fallbackKey = `${event.start}|${normalizeTitle(event.title)}`;
-      const claimedBy = seenTimeTitleKeys.get(fallbackKey);
-      if (claimedBy !== undefined && claimedBy !== event.sourceId) {
+      const claim = seenTimeTitleClaims.find((item) => item.start === event.start && titlesOverlap(item.title, event.title));
+      if (claim !== undefined && claim.sourceId !== event.sourceId) {
         dominated = true;
-      } else if (claimedBy === undefined) {
-        seenTimeTitleKeys.set(fallbackKey, event.sourceId);
+      } else if (claim === undefined) {
+        seenTimeTitleClaims.push({
+          start: event.start,
+          title: event.title,
+          sourceId: event.sourceId,
+        });
       }
     }
 
     if (!dominated) {
       result.push(event);
+      sameSourceTimeTitleMerged.push(event);
       if (mergeKey) {
         sameSourceMerged.set(mergeKey, event);
       }

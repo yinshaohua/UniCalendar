@@ -12,7 +12,7 @@ A unified calendar view for [Obsidian](https://obsidian.md) that aggregates even
 - **ICS feed sync** — subscribe to any public or private `.ics` URL
 - **Chinese lunar calendar** — lunar dates, traditional festivals (春节, 端午, 中秋…), and 24 solar terms displayed in each cell
 - **Public holiday overlay** — statutory holidays and adjusted workdays (补班) sourced from [holiday-cn](https://github.com/NateScarlet/holiday-cn)
-- **Event deduplication** — events shared across sources are shown once, with configurable source priority
+- **Event deduplication** — events shared across sources are shown once, with configurable source priority. Additional same-source deduplication removes duplicate instances when a provider returns the same occurrence more than once; if duplicates share the same source, start time, and overlapping normalized titles (exact match or one title containing the other), UniCalendar keeps the richer copy (for example the one with location, description, or meeting link metadata)
 - **Auto-sync** — configurable sync interval (default 30 minutes); manual sync available via command palette
 - **Mobile compatible** — works on iOS and Android (`isDesktopOnly: false`)
 

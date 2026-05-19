@@ -169,4 +169,106 @@ describe('deduplicateEvents', () => {
 
     expect(result).toHaveLength(2);
   });
+
+  it('deduplicates same-source duplicates without uid when start time and title match exactly', () => {
+    const events: CalendarEvent[] = [
+      makeEvent({
+        id: 'feishu::a',
+        sourceId: 'feishu',
+        uid: undefined,
+        title: 'WaytoAGI晚8点共学',
+        start: '2026-05-20T12:00:00.000Z',
+        end: '2026-05-20T13:00:00.000Z',
+      }),
+      makeEvent({
+        id: 'feishu::b',
+        sourceId: 'feishu',
+        uid: undefined,
+        title: 'WaytoAGI晚8点共学',
+        start: '2026-05-20T12:00:00.000Z',
+        end: '2026-05-20T13:00:00.000Z',
+        description: '视频会议: https://vc.feishu.cn/j/108720872',
+      }),
+    ];
+
+    const result = deduplicateEvents(events, ['feishu']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('feishu::b');
+    expect(result[0]!.description).toContain('vc.feishu.cn');
+  });
+
+  it('deduplicates same-source duplicates when one title contains the other and keeps the longer title', () => {
+    const events: CalendarEvent[] = [
+      makeEvent({
+        id: 'feishu::short',
+        sourceId: 'feishu',
+        uid: undefined,
+        title: 'WaytoAGI晚8点共学',
+        start: '2026-05-20T12:00:00.000Z',
+        end: '2026-05-20T13:00:00.000Z',
+      }),
+      makeEvent({
+        id: 'feishu::long',
+        sourceId: 'feishu',
+        uid: undefined,
+        title: 'WaytoAGI晚8点共学 - Agent 实战专场',
+        start: '2026-05-20T12:00:00.000Z',
+        end: '2026-05-20T13:00:00.000Z',
+      }),
+    ];
+
+    const result = deduplicateEvents(events, ['feishu']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.id).toBe('feishu::long');
+    expect(result[0]!.title).toBe('WaytoAGI晚8点共学 - Agent 实战专场');
+  });
+
+  it('deduplicates cross-source events when one title contains the other', () => {
+    const events: CalendarEvent[] = [
+      makeEvent({
+        id: 's1::a',
+        sourceId: 's1',
+        uid: undefined,
+        title: '项目周会',
+        start: '2026-04-01T09:00:00Z',
+      }),
+      makeEvent({
+        id: 's2::b',
+        sourceId: 's2',
+        uid: undefined,
+        title: '项目周会 - 核心模块进展同步',
+        start: '2026-04-01T09:00:00Z',
+      }),
+    ];
+
+    const result = deduplicateEvents(events, ['s1', 's2']);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]!.sourceId).toBe('s1');
+  });
+
+  it('does not deduplicate same-source events without uid when titles differ', () => {
+    const events: CalendarEvent[] = [
+      makeEvent({
+        id: 'feishu::a',
+        sourceId: 'feishu',
+        uid: undefined,
+        title: 'WaytoAGI晚8点共学',
+        start: '2026-05-20T12:00:00.000Z',
+      }),
+      makeEvent({
+        id: 'feishu::b',
+        sourceId: 'feishu',
+        uid: undefined,
+        title: '安克创新AI全景课第二期',
+        start: '2026-05-20T12:00:00.000Z',
+      }),
+    ];
+
+    const result = deduplicateEvents(events, ['feishu']);
+
+    expect(result).toHaveLength(2);
+  });
 });
