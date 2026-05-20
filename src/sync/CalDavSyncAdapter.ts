@@ -8,16 +8,14 @@ export interface DiscoveredCalendar {
 }
 
 export interface CalDavSyncOptions {
-  fallbackFetchEnabled?: boolean;
-  fallbackTimeoutMs?: number;
   cache?: CalDavCache;
   onCacheChange?: (cache: CalDavCache) => void;
 }
 
 export class CalDavSyncAdapter {
-  private static readonly DEFAULT_FALLBACK_TIMEOUT_MS = 10000;
-  private static readonly MULTIGET_FALLBACK_TIMEOUT_MS = 2000;
-  private static readonly FORBIDDEN_GET_LATE_MULTIGET_TIMEOUT_MS = 60000;
+  private static readonly FEISHU_MULTIGET_TIMEOUT_MS = 60000;
+  private static readonly GENERIC_MULTIGET_TIMEOUT_MS = 2000;
+  private static readonly GENERIC_FALLBACK_TIMEOUT_MS = 10000;
   private static readonly FALLBACK_GET_CONCURRENCY = 6;
   private icsAdapter: IcsSyncAdapter;
 
@@ -192,6 +190,7 @@ export class CalDavSyncAdapter {
         rangeStart,
         rangeEnd,
         options,
+        this.isFeishuServer(baseUrl) ? { useFingerprintCache: true } : undefined,
       );
       allEvents.push(...events);
       console.debug(
@@ -206,7 +205,7 @@ export class CalDavSyncAdapter {
     return allEvents;
   }
 
-  private async fetchCalendarEvents(
+  private fetchCalendarEvents(
     calendarPath: string,
     baseUrl: string,
     authHeader: string,
@@ -214,6 +213,33 @@ export class CalDavSyncAdapter {
     rangeStart: Date,
     rangeEnd: Date,
     options?: CalDavSyncOptions,
+    cacheOptions?: {
+      useFingerprintCache?: boolean;
+    },
+  ): Promise<CalendarEvent[]> {
+    return this.fetchCalendarEventsInternal(
+      calendarPath,
+      baseUrl,
+      authHeader,
+      sourceId,
+      rangeStart,
+      rangeEnd,
+      options,
+      cacheOptions,
+    );
+  }
+
+  private async fetchCalendarEventsInternal(
+    calendarPath: string,
+    baseUrl: string,
+    authHeader: string,
+    sourceId: string,
+    rangeStart: Date,
+    rangeEnd: Date,
+    options?: CalDavSyncOptions,
+    cacheOptions?: {
+      useFingerprintCache?: boolean;
+    },
   ): Promise<CalendarEvent[]> {
     const calendarUrl = new URL(calendarPath, baseUrl).href;
     const startUtc = this.dateToCalDavUTC(rangeStart);
@@ -262,77 +288,87 @@ export class CalDavSyncAdapter {
     );
 
     let icsTexts = this.parseEventReportXml(responseText);
+    let hrefOnlyFingerprint: string | undefined;
     console.debug(`[UniCalendar] CalDAV REPORT returned ${icsTexts.length} calendar-data payload(s) from ${calendarPath}`);
 
     if (icsTexts.length === 0) {
       const eventResources = this.parseEventResourceDescriptors(responseText, calendarPath, baseUrl);
       if (eventResources.length > 0) {
-        if (options?.fallbackFetchEnabled) {
-          console.debug(`[UniCalendar] CalDAV REPORT returned ${eventResources.length} event href(s) without calendar-data from ${calendarPath}; fetching event bodies via calendar-multiget`);
-          const fetchStartedAt = performance.now();
-          const fallbackTimeoutMs = this.normalizeFallbackTimeoutMs(options?.fallbackTimeoutMs);
-          const cachedBodies = this.getCachedBodies(eventResources, calendarCacheEntry);
-          const pendingResources = eventResources.filter((resource) => !cachedBodies.has(resource.href));
-          let fetchedResources = { bodies: [] as string[], failures: [] as Array<{ url: string; status?: number; message: string }> };
-          let usedCachedCalendarResult = false;
-
-          try {
-            fetchedResources = await this.fetchEventResources(
-              pendingResources,
-              calendarUrl,
-              authHeader,
-              fallbackTimeoutMs,
-            );
-          } catch (err) {
-            if (this.isTimeoutError(err)) {
-              if (calendarCacheEntry) {
-                const cacheAgeMs = Date.now() - calendarCacheEntry.lastSuccessfulSyncAt;
-                console.warn(
-                  `[UniCalendar] CalDAV href-only fallback timed out: path=${calendarPath}, hrefs=${pendingResources.length}, timeoutMs=${fallbackTimeoutMs}, usingCachedEvents=${calendarCacheEntry.cachedEvents.length}, cacheAgeMs=${cacheAgeMs}`,
-                );
-                usedCachedCalendarResult = true;
-              } else {
-                console.warn(
-                  `[UniCalendar] CalDAV href-only fallback timed out without cache: path=${calendarPath}, hrefs=${pendingResources.length}, timeoutMs=${fallbackTimeoutMs}, skippingCalendar=true`,
-                );
-                return [];
-              }
-            } else {
-              throw err;
-            }
-          }
-
-          if (usedCachedCalendarResult && calendarCacheEntry) {
-            return calendarCacheEntry.cachedEvents;
-          }
-
-          const cacheHits = cachedBodies.size;
-          icsTexts = [...cachedBodies.values(), ...fetchedResources.bodies];
+        const resourceFingerprint = this.createResourceFingerprint(eventResources);
+        hrefOnlyFingerprint = resourceFingerprint;
+        if (cacheOptions?.useFingerprintCache && calendarCacheEntry?.resourceFingerprint === resourceFingerprint) {
           console.debug(
-            `[UniCalendar] CalDAV fallback fetch finished: path=${calendarPath}, hrefs=${eventResources.length}, payloads=${icsTexts.length}, cacheHits=${cacheHits}, fetched=${fetchedResources.bodies.length}, failures=${fetchedResources.failures.length}, durationMs=${Math.round(performance.now() - fetchStartedAt)}`,
+            `[UniCalendar] CalDAV href-only fingerprint cache hit: path=${calendarPath}, hrefs=${eventResources.length}, events=${calendarCacheEntry.cachedEvents.length}`,
           );
+          return calendarCacheEntry.cachedEvents;
+        }
+        const isFeishu = this.isFeishuServer(baseUrl);
+        if (isFeishu) {
+          console.debug(`[UniCalendar] Feishu CalDAV REPORT returned ${eventResources.length} event href(s) without calendar-data from ${calendarPath}; fetching event bodies via long calendar-multiget`);
+        } else {
+          console.debug(`[UniCalendar] CalDAV REPORT returned ${eventResources.length} event href(s) without calendar-data from ${calendarPath}; fetching event bodies via compatibility fallback`);
+        }
+        const fetchStartedAt = performance.now();
+        const cachedBodies = this.getCachedBodies(eventResources, calendarCacheEntry);
+        const pendingResources = eventResources.filter((resource) => !cachedBodies.has(resource.href));
+        let fetchedResources = { bodies: [] as string[], failures: [] as Array<{ url: string; status?: number; message: string }> };
+        let usedCachedCalendarResult = false;
 
-          if (fetchedResources.bodies.length > 0) {
-            this.updateCalendarCacheResources(options, sourceId, calendarPath, eventResources, fetchedResources.bodies);
-          }
-
-          if (icsTexts.length === 0 && fetchedResources.failures.length > 0) {
+        try {
+          fetchedResources = await this.fetchEventResources(
+            pendingResources,
+            calendarUrl,
+            authHeader,
+            isFeishu,
+          );
+        } catch (err) {
+          if (this.isTimeoutError(err)) {
+            const timeoutMs = isFeishu
+              ? CalDavSyncAdapter.FEISHU_MULTIGET_TIMEOUT_MS
+              : CalDavSyncAdapter.GENERIC_FALLBACK_TIMEOUT_MS;
             if (calendarCacheEntry) {
               const cacheAgeMs = Date.now() - calendarCacheEntry.lastSuccessfulSyncAt;
               console.warn(
-                `[UniCalendar] CalDAV href-only fallback failed: path=${calendarPath}, hrefs=${eventResources.length}, failures=${fetchedResources.failures.length}, usingCachedEvents=${calendarCacheEntry.cachedEvents.length}, cacheAgeMs=${cacheAgeMs}`,
+                `[UniCalendar] CalDAV href-only fallback timed out: path=${calendarPath}, hrefs=${pendingResources.length}, timeoutMs=${timeoutMs}, usingCachedEvents=${calendarCacheEntry.cachedEvents.length}, cacheAgeMs=${cacheAgeMs}`,
               );
-              return calendarCacheEntry.cachedEvents;
+              usedCachedCalendarResult = true;
+            } else {
+              console.warn(
+                `[UniCalendar] CalDAV href-only fallback timed out without cache: path=${calendarPath}, hrefs=${pendingResources.length}, timeoutMs=${timeoutMs}, skippingCalendar=true`,
+              );
+              return [];
             }
-            console.warn(
-              `[UniCalendar] CalDAV href-only fallback failed without cache: path=${calendarPath}, hrefs=${eventResources.length}, failures=${fetchedResources.failures.length}, skippingCalendar=true`,
-            );
-            return [];
+          } else {
+            throw err;
           }
-        } else {
+        }
+
+        if (usedCachedCalendarResult && calendarCacheEntry) {
+          return calendarCacheEntry.cachedEvents;
+        }
+
+        const cacheHits = cachedBodies.size;
+        icsTexts = [...cachedBodies.values(), ...fetchedResources.bodies];
+        console.debug(
+          `[UniCalendar] CalDAV fallback fetch finished: path=${calendarPath}, mode=${isFeishu ? 'feishu-long-multiget' : 'generic'}, hrefs=${eventResources.length}, payloads=${icsTexts.length}, cacheHits=${cacheHits}, fetched=${fetchedResources.bodies.length}, failures=${fetchedResources.failures.length}, durationMs=${Math.round(performance.now() - fetchStartedAt)}`,
+        );
+
+        if (fetchedResources.bodies.length > 0 && !cacheOptions?.useFingerprintCache) {
+          this.updateCalendarCacheResources(options, sourceId, calendarPath, eventResources, fetchedResources.bodies);
+        }
+
+        if (icsTexts.length === 0 && fetchedResources.failures.length > 0) {
+          if (calendarCacheEntry) {
+            const cacheAgeMs = Date.now() - calendarCacheEntry.lastSuccessfulSyncAt;
+            console.warn(
+              `[UniCalendar] CalDAV href-only fallback failed: path=${calendarPath}, hrefs=${eventResources.length}, failures=${fetchedResources.failures.length}, usingCachedEvents=${calendarCacheEntry.cachedEvents.length}, cacheAgeMs=${cacheAgeMs}`,
+            );
+            return calendarCacheEntry.cachedEvents;
+          }
           console.warn(
-            `[UniCalendar] CalDAV REPORT returned href-only results and fallback fetch is disabled: path=${calendarPath}, hrefs=${eventResources.length}`,
+            `[UniCalendar] CalDAV href-only fallback failed without cache: path=${calendarPath}, hrefs=${eventResources.length}, failures=${fetchedResources.failures.length}, skippingCalendar=true`,
           );
+          return [];
         }
       }
     }
@@ -340,9 +376,7 @@ export class CalDavSyncAdapter {
     if (icsTexts.length === 0) {
       throw this.createCalDavDiagnosticError(
         calendarPath,
-        options?.fallbackFetchEnabled
-          ? 'CalDAV返回成功但未包含可解析的calendar-data，可能与该服务的响应格式不兼容。'
-          : 'CalDAV返回成功，但该服务只返回事件链接且已禁用慢速补抓；为避免长时间卡顿，本次跳过该日历事件详情拉取。',
+        'CalDAV返回成功但未包含可解析的calendar-data，可能与该服务的响应格式不兼容。',
         responseText,
       );
     }
@@ -382,7 +416,11 @@ export class CalDavSyncAdapter {
       );
     }
 
-    this.storeCalendarResultCache(options, sourceId, calendarPath, events);
+    this.storeCalendarResultCache(options, sourceId, calendarPath, events, {
+      resourceFingerprint: hrefOnlyFingerprint,
+      cacheWindowStart: rangeStart.toISOString(),
+      cacheWindowEnd: rangeEnd.toISOString(),
+    });
     return events;
   }
 
@@ -612,37 +650,52 @@ export class CalDavSyncAdapter {
     resources: Array<{ href: string; etag?: string }>,
     calendarUrl: string,
     authHeader: string,
-    totalTimeoutMs = CalDavSyncAdapter.DEFAULT_FALLBACK_TIMEOUT_MS,
+    isFeishu: boolean,
   ): Promise<{ bodies: string[]; failures: Array<{ url: string; status?: number; message: string }> }> {
     const eventUrls = resources.map(resource => resource.href);
     if (eventUrls.length === 0) {
       return { bodies: [], failures: [] };
     }
 
+    if (isFeishu) {
+      try {
+        const multigetAttempt = await this.withTimeout(
+          this.fetchEventResourcesViaMultiget(eventUrls, calendarUrl, authHeader),
+          CalDavSyncAdapter.FEISHU_MULTIGET_TIMEOUT_MS,
+        );
+        return multigetAttempt;
+      } catch (err) {
+        if (!this.isTimeoutError(err)) {
+          throw err;
+        }
+        console.warn(
+          `[UniCalendar] Feishu CalDAV long calendar-multiget timed out: hrefs=${eventUrls.length}, timeoutMs=${CalDavSyncAdapter.FEISHU_MULTIGET_TIMEOUT_MS}`,
+        );
+        return {
+          bodies: [],
+          failures: [{ url: calendarUrl, message: `Feishu calendar-multiget timed out after ${CalDavSyncAdapter.FEISHU_MULTIGET_TIMEOUT_MS}ms` }],
+        };
+      }
+    }
+
     const startedAt = performance.now();
-    const multigetTimeoutMs = Math.min(
-      CalDavSyncAdapter.MULTIGET_FALLBACK_TIMEOUT_MS,
-      Math.max(1000, Math.floor(totalTimeoutMs / 2)),
-    );
     const multigetPromise = this.fetchEventResourcesViaMultiget(eventUrls, calendarUrl, authHeader);
-    let multigetTimedOut = false;
     let multigetAttempt: { bodies: string[]; failures: Array<{ url: string; status?: number; message: string }> };
     try {
       multigetAttempt = await this.withTimeout(
         multigetPromise,
-        multigetTimeoutMs,
+        CalDavSyncAdapter.GENERIC_MULTIGET_TIMEOUT_MS,
       );
     } catch (err) {
       if (!this.isTimeoutError(err)) {
         throw err;
       }
-      multigetTimedOut = true;
       console.warn(
-        `[UniCalendar] CalDAV calendar-multiget fallback timed out: hrefs=${eventUrls.length}, timeoutMs=${multigetTimeoutMs}, switchingToGet=true`,
+        `[UniCalendar] CalDAV calendar-multiget fallback timed out: hrefs=${eventUrls.length}, timeoutMs=${CalDavSyncAdapter.GENERIC_MULTIGET_TIMEOUT_MS}, switchingToGet=true`,
       );
       multigetAttempt = {
         bodies: [],
-        failures: [{ url: calendarUrl, message: `calendar-multiget timed out after ${multigetTimeoutMs}ms` }],
+        failures: [{ url: calendarUrl, message: `calendar-multiget timed out after ${CalDavSyncAdapter.GENERIC_MULTIGET_TIMEOUT_MS}ms` }],
       };
     }
 
@@ -650,7 +703,7 @@ export class CalDavSyncAdapter {
       return multigetAttempt;
     }
 
-    const remainingTimeoutMs = Math.max(1000, totalTimeoutMs - Math.round(performance.now() - startedAt));
+    const remainingTimeoutMs = Math.max(1000, CalDavSyncAdapter.GENERIC_FALLBACK_TIMEOUT_MS - Math.round(performance.now() - startedAt));
     let fallbackAttempt: { bodies: string[]; failures: Array<{ url: string; status?: number; message: string }> };
     try {
       fallbackAttempt = await this.withTimeout(
@@ -670,60 +723,25 @@ export class CalDavSyncAdapter {
       };
     }
 
-    if (fallbackAttempt.bodies.length === 0 && multigetTimedOut && this.allFailuresHaveStatus(fallbackAttempt.failures, 403)) {
-      const retryTimeoutMs = Math.max(
-        1000,
-        Math.min(
-          CalDavSyncAdapter.FORBIDDEN_GET_LATE_MULTIGET_TIMEOUT_MS,
-          CalDavSyncAdapter.FORBIDDEN_GET_LATE_MULTIGET_TIMEOUT_MS - Math.round(performance.now() - startedAt),
-        ),
-      );
-      console.warn(
-        `[UniCalendar] CalDAV GET fallback returned 403 for all hrefs after calendar-multiget timeout: hrefs=${eventUrls.length}, waitingForMultiget=true, timeoutMs=${retryTimeoutMs}`,
-      );
-      try {
-        const lateMultigetAttempt = await this.withTimeout(multigetPromise, retryTimeoutMs);
-        return {
-          bodies: lateMultigetAttempt.bodies,
-          failures: [...multigetAttempt.failures, ...fallbackAttempt.failures, ...lateMultigetAttempt.failures],
-        };
-      } catch (err) {
-        if (!this.isTimeoutError(err)) {
-          throw err;
-        }
-        console.warn(
-          `[UniCalendar] CalDAV late calendar-multiget fallback timed out: hrefs=${eventUrls.length}, timeoutMs=${retryTimeoutMs}`,
-        );
-        return {
-          bodies: [],
-          failures: [
-            ...multigetAttempt.failures,
-            ...fallbackAttempt.failures,
-            { url: calendarUrl, message: `late calendar-multiget timed out after ${retryTimeoutMs}ms` },
-          ],
-        };
-      }
-    }
-
     return {
       bodies: fallbackAttempt.bodies,
       failures: [...multigetAttempt.failures, ...fallbackAttempt.failures],
     };
   }
 
-  private allFailuresHaveStatus(
-    failures: Array<{ status?: number }>,
-    status: number,
-  ): boolean {
-    return failures.length > 0 && failures.every(failure => failure.status === status);
+  private isFeishuServer(baseUrl: string): boolean {
+    try {
+      return new URL(baseUrl).hostname.toLowerCase() === 'caldav.feishu.cn';
+    } catch {
+      return false;
+    }
   }
 
-  private normalizeFallbackTimeoutMs(value: number | undefined): number {
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      return CalDavSyncAdapter.DEFAULT_FALLBACK_TIMEOUT_MS;
-    }
-
-    return Math.max(1000, Math.min(60000, Math.round(value)));
+  private createResourceFingerprint(resources: Array<{ href: string; etag?: string }>): string {
+    return resources
+      .map(resource => `${resource.href}\u0000${resource.etag ?? ''}`)
+      .sort()
+      .join('\u0001');
   }
 
   private async withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
@@ -801,6 +819,7 @@ export class CalDavSyncAdapter {
       };
     }
     options.onCacheChange(nextCache);
+    options.cache = nextCache;
   }
 
   private storeCalendarResultCache(
@@ -808,6 +827,7 @@ export class CalDavSyncAdapter {
     sourceId: string,
     calendarPath: string,
     events: CalendarEvent[],
+    metadata?: { resourceFingerprint?: string; cacheWindowStart?: string; cacheWindowEnd?: string },
   ): void {
     if (!options?.cache || !options.onCacheChange) {
       return;
@@ -817,7 +837,17 @@ export class CalDavSyncAdapter {
     const entry = this.ensureCalendarCacheEntry(nextCache, sourceId, calendarPath);
     entry.cachedEvents = events;
     entry.lastSuccessfulSyncAt = Date.now();
+    if (metadata?.resourceFingerprint !== undefined) {
+      entry.resourceFingerprint = metadata.resourceFingerprint;
+    }
+    if (metadata?.cacheWindowStart !== undefined) {
+      entry.cacheWindowStart = metadata.cacheWindowStart;
+    }
+    if (metadata?.cacheWindowEnd !== undefined) {
+      entry.cacheWindowEnd = metadata.cacheWindowEnd;
+    }
     options.onCacheChange(nextCache);
+    options.cache = nextCache;
   }
 
   private cloneCache(cache: CalDavCache): CalDavCache {
@@ -832,6 +862,9 @@ export class CalDavSyncAdapter {
                 cachedEvents: [...entry.cachedEvents],
                 lastSuccessfulSyncAt: entry.lastSuccessfulSyncAt,
                 resourcesByHref: { ...entry.resourcesByHref },
+                resourceFingerprint: entry.resourceFingerprint,
+                cacheWindowStart: entry.cacheWindowStart,
+                cacheWindowEnd: entry.cacheWindowEnd,
               },
             ]),
           ),

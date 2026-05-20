@@ -48,7 +48,6 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.syncInterval).toBe(15);
     expect(DEFAULT_SETTINGS.syncWindowPastMonths).toBe(1);
     expect(DEFAULT_SETTINGS.syncWindowFutureMonths).toBe(3);
-    expect(DEFAULT_SETTINGS.caldavFallbackFetchEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.defaultView).toBe('month');
   });
 

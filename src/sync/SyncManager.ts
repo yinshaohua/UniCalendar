@@ -9,7 +9,7 @@ export class SyncManager {
   private state: SyncState = { status: 'idle', lastSyncTime: null };
   private onStateChange: (state: SyncState) => void;
   private eventStore: EventStore;
-  private settingsProvider?: () => Pick<UniCalendarSettings, 'syncWindowPastMonths' | 'syncWindowFutureMonths' | 'caldavFallbackFetchEnabled'>;
+  private settingsProvider?: () => Pick<UniCalendarSettings, 'syncWindowPastMonths' | 'syncWindowFutureMonths'>;
   private caldavCacheProvider?: () => CalDavCache;
   private onCaldavCacheChange?: (cache: CalDavCache) => void;
   private icsAdapter: IcsSyncAdapter = new IcsSyncAdapter();
@@ -20,7 +20,7 @@ export class SyncManager {
   constructor(
     onStateChange: (state: SyncState) => void,
     eventStore: EventStore,
-    settingsProvider?: () => Pick<UniCalendarSettings, 'syncWindowPastMonths' | 'syncWindowFutureMonths' | 'caldavFallbackFetchEnabled'>,
+    settingsProvider?: () => Pick<UniCalendarSettings, 'syncWindowPastMonths' | 'syncWindowFutureMonths'>,
     caldavCacheProvider?: () => CalDavCache,
     onCaldavCacheChange?: (cache: CalDavCache) => void,
   ) {
@@ -55,7 +55,6 @@ export class SyncManager {
     const windowConfig = this.settingsProvider?.() ?? {
       syncWindowPastMonths: 1,
       syncWindowFutureMonths: 3,
-      caldavFallbackFetchEnabled: true,
     };
     const pastMonths = this.normalizeSyncWindowMonths(windowConfig.syncWindowPastMonths, 1);
     const futureMonths = this.normalizeSyncWindowMonths(windowConfig.syncWindowFutureMonths, 3);
@@ -88,8 +87,6 @@ export class SyncManager {
           console.debug(`[UniCalendar] Source sync finished: ${sourceLabel}, events=${events.length}, durationMs=${Math.round(performance.now() - sourceStartedAt)}`);
         } else if (source.type === 'caldav') {
           const events = await this.caldavAdapter.sync(source, rangeStart, rangeEnd, {
-            fallbackFetchEnabled: source.caldav?.fallbackFetchEnabled ?? windowConfig.caldavFallbackFetchEnabled,
-            fallbackTimeoutMs: source.caldav?.fallbackTimeoutMs,
             cache: this.caldavCacheProvider?.(),
             onCacheChange: this.onCaldavCacheChange,
           });

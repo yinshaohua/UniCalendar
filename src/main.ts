@@ -44,7 +44,6 @@ export default class UniCalendarPlugin extends Plugin {
       () => ({
         syncWindowPastMonths: this.settings.syncWindowPastMonths,
         syncWindowFutureMonths: this.settings.syncWindowFutureMonths,
-        caldavFallbackFetchEnabled: this.settings.caldavFallbackFetchEnabled,
       }),
       () => this.caldavCache,
       (cache) => {

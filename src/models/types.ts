@@ -83,7 +83,8 @@ export interface UniCalendarSettings {
   syncInterval: number;          // minutes
   syncWindowPastMonths: number;  // months before now to include during sync
   syncWindowFutureMonths: number; // months after now to include during sync
-  caldavFallbackFetchEnabled: boolean; // whether CalDAV should fetch event bodies when REPORT returns hrefs only
+  // Deprecated: retained only so existing saved plugin data can be loaded without dropping unknown fields.
+  caldavFallbackFetchEnabled?: boolean;
   defaultView: 'month' | 'week' | 'day';
   monthOverflowMode: 'expand' | 'collapse';
   showLunarCalendar: boolean;    // D-12: show lunar dates, festivals, solar terms in month view
@@ -120,6 +121,10 @@ export interface CalDavCalendarCacheEntry {
   cachedEvents: CalendarEvent[];
   lastSuccessfulSyncAt: number;
   resourcesByHref: Record<string, CalDavCachedResource>;
+  /** Fingerprint of href+etag descriptors used to cache parsed href-only CalDAV results without storing huge ICS bodies. */
+  resourceFingerprint?: string;
+  cacheWindowStart?: string;
+  cacheWindowEnd?: string;
 }
 
 export interface CalDavCache {
@@ -177,7 +182,7 @@ export const DEFAULT_SETTINGS: UniCalendarSettings = {
   syncInterval: 15,
   syncWindowPastMonths: 1,
   syncWindowFutureMonths: 3,
-  caldavFallbackFetchEnabled: true,
+  // Deprecated: CalDAV compatibility behavior is now selected automatically by server host.
   defaultView: 'month',
   monthOverflowMode: 'expand',
   showLunarCalendar: true,
