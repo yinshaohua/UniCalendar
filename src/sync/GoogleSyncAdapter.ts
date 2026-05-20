@@ -4,6 +4,9 @@ import { GoogleAuthHelper, GoogleTokenError } from './GoogleAuthHelper';
 
 const CALENDAR_LIST_URL = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 const CALENDAR_EVENTS_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
+const GOOGLE_EVENTS_REQUEST_TIMEOUT_MS = 15000;
+const GOOGLE_DISCOVERY_REQUEST_TIMEOUT_MS = 15000;
+const GOOGLE_SOURCE_SYNC_TIMEOUT_MS = 60000;
 
 interface GoogleCalendarListResponse {
   items?: GoogleCalendarEntry[];
@@ -31,19 +34,45 @@ export interface GoogleCalendarEntry {
   backgroundColor?: string;
 }
 
+export interface GoogleSyncAdapterOptions {
+  eventsRequestTimeoutMs?: number;
+  discoveryRequestTimeoutMs?: number;
+  sourceSyncTimeoutMs?: number;
+}
+
 export class GoogleSyncAdapter {
   private authHelper: GoogleAuthHelper;
+  private readonly eventsRequestTimeoutMs: number;
+  private readonly discoveryRequestTimeoutMs: number;
+  private readonly sourceSyncTimeoutMs: number;
 
-  constructor(authHelper: GoogleAuthHelper) {
+  constructor(authHelper: GoogleAuthHelper, options: GoogleSyncAdapterOptions = {}) {
     this.authHelper = authHelper;
+    this.eventsRequestTimeoutMs = options.eventsRequestTimeoutMs ?? GOOGLE_EVENTS_REQUEST_TIMEOUT_MS;
+    this.discoveryRequestTimeoutMs = options.discoveryRequestTimeoutMs ?? GOOGLE_DISCOVERY_REQUEST_TIMEOUT_MS;
+    this.sourceSyncTimeoutMs = options.sourceSyncTimeoutMs ?? GOOGLE_SOURCE_SYNC_TIMEOUT_MS;
   }
 
   async discoverCalendars(accessToken: string): Promise<GoogleCalendarEntry[]> {
-    const response = await requestUrl({
-      url: CALENDAR_LIST_URL,
-      method: 'GET',
-      headers: { 'Authorization': `Bearer ${accessToken}` },
-    });
+    let response: Awaited<ReturnType<typeof requestUrl>>;
+    try {
+      response = await this.withTimeout(
+        requestUrl({
+          url: CALENDAR_LIST_URL,
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+        }),
+        this.discoveryRequestTimeoutMs,
+        'discovery',
+      );
+    } catch (cause) {
+      if (this.isTimeoutError(cause)) {
+        throw new Error(
+          `获取 Google 日历列表超时（>${this.discoveryRequestTimeoutMs}ms），请检查网络后重试。`,
+        );
+      }
+      throw cause;
+    }
 
     const payload = this.parseCalendarListResponse(response.json);
     const items = payload.items ?? [];
@@ -77,18 +106,42 @@ export class GoogleSyncAdapter {
     }
 
     try {
-      const accessToken = await this.authHelper.ensureValidToken(source.google);
-      const allEvents: CalendarEvent[] = [];
-      for (const calId of calendarIds) {
-        const events = await this.fetchEvents(calId, accessToken, source.id, source.name, rangeStart, rangeEnd);
-        allEvents.push(...events);
-      }
-      delete source.google.lastSyncError;
-      return allEvents;
+      return await this.withTimeout(
+        this.runSync(source, calendarIds, rangeStart, rangeEnd),
+        this.sourceSyncTimeoutMs,
+        'source-sync',
+      );
     } catch (error) {
-      this.persistGoogleDiagnostic(source, error);
-      throw error;
+      const wrapped = this.isTimeoutError(error)
+        ? new Error(`Google 同步超时（>${this.sourceSyncTimeoutMs}ms），请检查网络后重试。`)
+        : error;
+      this.persistGoogleDiagnostic(source, wrapped);
+      throw wrapped;
     }
+  }
+
+  private async runSync(
+    source: CalendarSource,
+    calendarIds: string[],
+    rangeStart: Date,
+    rangeEnd: Date,
+  ): Promise<CalendarEvent[]> {
+    const accessToken = await this.authHelper.ensureValidToken(source.google);
+    console.debug(
+      `[UniCalendar] Google token ready: source=${source.name}, calendars=${calendarIds.length}, range=${rangeStart.toISOString()}..${rangeEnd.toISOString()}`,
+    );
+    const allEvents: CalendarEvent[] = [];
+    for (const calId of calendarIds) {
+      const calendarStartedAt = performance.now();
+      console.debug(`[UniCalendar] Google calendar sync started: source=${source.name}, calendarId=${calId}`);
+      const events = await this.fetchEvents(calId, accessToken, source.id, source.name, rangeStart, rangeEnd);
+      allEvents.push(...events);
+      console.debug(
+        `[UniCalendar] Google calendar sync finished: source=${source.name}, calendarId=${calId}, events=${events.length}, durationMs=${Math.round(performance.now() - calendarStartedAt)}`,
+      );
+    }
+    delete source.google!.lastSyncError;
+    return allEvents;
   }
 
   private async fetchEvents(
@@ -101,8 +154,11 @@ export class GoogleSyncAdapter {
   ): Promise<CalendarEvent[]> {
     const allEvents: CalendarEvent[] = [];
     let pageToken: string | undefined;
+    let page = 1;
 
     do {
+      const pageStartedAt = performance.now();
+      console.debug(`[UniCalendar] Google events page requested: source=${sourceName}, calendarId=${calendarId}, page=${page}, hasPageToken=${pageToken ? 'yes' : 'no'}`);
       const params = new URLSearchParams({
         timeMin: rangeStart.toISOString(),
         timeMax: rangeEnd.toISOString(),
@@ -115,7 +171,7 @@ export class GoogleSyncAdapter {
       }
 
       const url = `${CALENDAR_EVENTS_BASE}/${encodeURIComponent(calendarId)}/events?${params.toString()}`;
-      const response = await this.requestEventsPage(url, accessToken, sourceName, calendarId);
+      const response = await this.requestEventsPage(url, accessToken, sourceName, calendarId, page);
       const json = this.parseEventsResponse(response.json);
       const items = json.items ?? [];
       for (const item of items) {
@@ -123,6 +179,10 @@ export class GoogleSyncAdapter {
       }
 
       pageToken = json.nextPageToken;
+      console.debug(
+        `[UniCalendar] Google events page finished: source=${sourceName}, calendarId=${calendarId}, page=${page}, items=${items.length}, nextPageToken=${pageToken ? 'yes' : 'no'}, durationMs=${Math.round(performance.now() - pageStartedAt)}`,
+      );
+      page++;
     } while (pageToken);
 
     return allEvents;
@@ -133,16 +193,20 @@ export class GoogleSyncAdapter {
     accessToken: string,
     sourceName: string,
     calendarId: string,
+    page: number,
   ): Promise<Awaited<ReturnType<typeof requestUrl>>> {
     let response: Awaited<ReturnType<typeof requestUrl>>;
     try {
-      response = await requestUrl({
-        url,
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${accessToken}` },
-      });
+      response = await this.withTimeout(
+        requestUrl({
+          url,
+          method: 'GET',
+          headers: { 'Authorization': `Bearer ${accessToken}` },
+        }),
+        this.eventsRequestTimeoutMs,
+      );
     } catch (cause) {
-      throw this.wrapGoogleApiError('获取 Google 日历事件失败，请检查网络后重试。', sourceName, calendarId, cause);
+      throw this.wrapGoogleApiError('获取 Google 日历事件失败，请检查网络后重试。', sourceName, calendarId, cause, page);
     }
 
     if (typeof response.status === 'number' && response.status >= 400) {
@@ -150,7 +214,7 @@ export class GoogleSyncAdapter {
       throw this.wrapGoogleApiError('获取 Google 日历事件失败，请稍后重试。', sourceName, calendarId, {
         status: response.status,
         json: responseJson,
-      });
+      }, page);
     }
 
     return response;
@@ -290,7 +354,7 @@ export class GoogleSyncAdapter {
     };
   }
 
-  private wrapGoogleApiError(userMessage: string, sourceName: string, calendarId: string, cause: unknown): Error {
+  private wrapGoogleApiError(userMessage: string, sourceName: string, calendarId: string, cause: unknown, page?: number): Error {
     if (cause instanceof GoogleTokenError) {
       return cause;
     }
@@ -301,6 +365,8 @@ export class GoogleSyncAdapter {
     const logContext = {
       sourceName,
       calendarId,
+      page,
+      timeoutMs: this.eventsRequestTimeoutMs,
       status,
       apiError,
       apiErrorDescription,
@@ -308,6 +374,10 @@ export class GoogleSyncAdapter {
     };
 
     console.error('[UniCalendar] Google Calendar API request failed', logContext);
+
+    if (this.isTimeoutError(cause)) {
+      return new Error(`获取 Google 日历事件超时（>${this.eventsRequestTimeoutMs}ms），请检查网络后重试。`);
+    }
 
     if (status === 401 || status === 403) {
       return new Error('Google 日历访问被拒绝，请重新授权后再试。');
@@ -364,6 +434,32 @@ export class GoogleSyncAdapter {
     }
     const value: unknown = Reflect.get(cause, 'json');
     return value && typeof value === 'object' ? value as Record<string, unknown> : {};
+  }
+
+  private async withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string = 'events'): Promise<T> {
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = globalThis.setTimeout(() => {
+        reject(new Error(`Google ${label} request timed out after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      promise.then(
+        (value) => {
+          globalThis.clearTimeout(timeoutId);
+          resolve(value);
+        },
+        (error: unknown) => {
+          globalThis.clearTimeout(timeoutId);
+          // Preserve the original cause (could be a non-Error POJO from
+          // requestUrl) so downstream mappers can still extract status/json.
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- propagate diagnostic-rich cause unchanged
+          reject(error);
+        },
+      );
+    });
+  }
+
+  private isTimeoutError(cause: unknown): boolean {
+    return cause instanceof Error && /timed out/i.test(cause.message);
   }
 
   private toCalendarEvent(

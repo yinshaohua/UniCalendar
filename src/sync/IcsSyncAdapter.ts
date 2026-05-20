@@ -3,6 +3,7 @@ import { requestUrl } from 'obsidian';
 import { CalendarEvent, CalendarSource } from '../models/types';
 
 export class IcsSyncAdapter {
+  private static readonly MAX_RECURRING_INSTANCES_PER_EVENT = 200;
 
   parseIcsText(
     icsText: string,
@@ -19,20 +20,25 @@ export class IcsSyncAdapter {
       );
     }
 
+    const parseStartedAt = performance.now();
     const comp = new ICAL.Component(jCalData);
     const vevents = comp.getAllSubcomponents('vevent');
     const events: CalendarEvent[] = [];
 
     const icalRangeStart = ICAL.Time.fromJSDate(rangeStart, true);
     const icalRangeEnd = ICAL.Time.fromJSDate(rangeEnd, true);
+    let recurringSourceEvents = 0;
+    let expandedInstances = 0;
 
     for (const vevent of vevents) {
       const icalEvent = new ICAL.Event(vevent);
 
       if (icalEvent.isRecurring()) {
+        recurringSourceEvents++;
         const expanded = this.expandRecurring(
           icalEvent, sourceId, icalRangeStart, icalRangeEnd,
         );
+        expandedInstances += expanded.length;
         events.push(...expanded);
       } else {
         // Non-recurring: check if within range
@@ -45,6 +51,10 @@ export class IcsSyncAdapter {
         events.push(this.toCalendarEvent(icalEvent, sourceId));
       }
     }
+
+    console.debug(
+      `[UniCalendar] ICS parsed: source=${sourceId}, vevents=${vevents.length}, recurringVevents=${recurringSourceEvents}, expandedInstances=${expandedInstances}, outputEvents=${events.length}, durationMs=${Math.round(performance.now() - parseStartedAt)}`,
+    );
 
     return events;
   }
@@ -59,6 +69,7 @@ export class IcsSyncAdapter {
       throw new Error('日历源缺少ICS订阅URL.');
     }
 
+    const requestStartedAt = performance.now();
     let responseText: string;
     try {
       const response = await requestUrl({ url: feedUrl });
@@ -68,6 +79,10 @@ export class IcsSyncAdapter {
         '无法连接到日历源: ' + feedUrl + '. 请检查网络连接和URL是否正确.',
       );
     }
+
+    console.debug(
+      `[UniCalendar] ICS fetch finished: source=${source.name}, bytes=${responseText.length}, durationMs=${Math.round(performance.now() - requestStartedAt)}`,
+    );
 
     return this.parseIcsText(responseText, source.id, rangeStart, rangeEnd);
   }
@@ -81,6 +96,8 @@ export class IcsSyncAdapter {
     const events: CalendarEvent[] = [];
     const iterator = icalEvent.iterator(icalEvent.startDate);
     const duration = icalEvent.duration;
+    const summary = icalEvent.summary || '(untitled)';
+    const uid = icalEvent.uid || '(no-uid)';
 
     // Safety limit to prevent infinite loops
     const maxIterations = 1000;
@@ -102,9 +119,22 @@ export class IcsSyncAdapter {
         events.push(
           this.toCalendarEvent(icalEvent, sourceId, next),
         );
+
+        if (events.length >= IcsSyncAdapter.MAX_RECURRING_INSTANCES_PER_EVENT) {
+          console.warn(
+            `[UniCalendar] Recurrence expansion capped: source=${sourceId}, uid=${uid}, title=${summary}, kept=${events.length}, iterations=${count}`,
+          );
+          break;
+        }
       }
 
       next = iterator.next();
+    }
+
+    if (count >= maxIterations) {
+      console.warn(
+        `[UniCalendar] Recurrence expansion stopped at safety limit: source=${sourceId}, uid=${uid}, title=${summary}, iterations=${count}, kept=${events.length}`,
+      );
     }
 
     return events;

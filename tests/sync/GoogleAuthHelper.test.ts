@@ -215,6 +215,17 @@ describe('GoogleAuthHelper', () => {
       expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(2);
     });
 
+    it('rejects with timeout-shaped network error when token request stalls past the configured timeout', async () => {
+      const fastTimeoutHelper = new GoogleAuthHelper({ retryDelayMs: 0, tokenRequestTimeoutMs: 10 });
+      vi.mocked(requestUrl).mockImplementation((() => new Promise(() => undefined)) as unknown as typeof requestUrl);
+
+      await expect(fastTimeoutHelper.refreshAccessToken('rt', 'cid', 'cs')).rejects.toMatchObject({
+        name: 'GoogleTokenError',
+        kind: 'network',
+        userMessage: expect.stringMatching(/超时.*10ms/) as unknown as string,
+      });
+    });
+
     it('throws invalid_client with configuration guidance', async () => {
       vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ error: 'invalid_client', error_description: 'Unauthorized' }, 401));
 

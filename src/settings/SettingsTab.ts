@@ -179,6 +179,24 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
         }));
 
     new Setting(containerEl)
+      .setName('同步窗口')
+      .setDesc('限制同步范围，减少远端返回量与循环事件展开成本')
+      .addDropdown(dropdown => dropdown
+        .addOptions({ '0': '过去 0 个月', '1': '过去 1 个月', '2': '过去 2 个月', '3': '过去 3 个月' })
+        .setValue(String(this.plugin.settings.syncWindowPastMonths))
+        .onChange(async (value) => {
+          this.plugin.settings.syncWindowPastMonths = Number(value);
+          await this.plugin.saveSettings();
+        }))
+      .addDropdown(dropdown => dropdown
+        .addOptions({ '1': '未来 1 个月', '2': '未来 2 个月', '3': '未来 3 个月', '6': '未来 6 个月' })
+        .setValue(String(this.plugin.settings.syncWindowFutureMonths))
+        .onChange(async (value) => {
+          this.plugin.settings.syncWindowFutureMonths = Number(value);
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
       .setName('默认视图')
       .setDesc('打开插件时显示的日历视图')
       .addDropdown(dropdown => dropdown
@@ -186,6 +204,18 @@ export class UniCalendarSettingsTab extends PluginSettingTab {
         .setValue(this.plugin.settings.defaultView)
         .onChange(async (value) => {
           this.plugin.settings.defaultView = value as 'month' | 'week' | 'day';
+          await this.plugin.saveSettings();
+        }));
+
+    new Setting(containerEl)
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- 中文文案中的英文专有名词大小写按 protocol 规范
+      .setName('CalDAV 兼容抓取')
+      // eslint-disable-next-line obsidianmd/ui/sentence-case -- 中文描述里包含专有名词大小写
+      .setDesc('当 CalDAV REPORT 只返回事件链接而不内联 calendar-data 时，是否继续慢速补抓详情。关闭可避免飞书等服务卡很久。')
+      .addToggle(toggle => toggle
+        .setValue(this.plugin.settings.caldavFallbackFetchEnabled)
+        .onChange(async (value) => {
+          this.plugin.settings.caldavFallbackFetchEnabled = value;
           await this.plugin.saveSettings();
         }));
 
@@ -494,6 +524,7 @@ class AddSourceModal extends Modal {
     let calendarPath = '';
     let calendarDisplayName = '';
     let selectedCaldavCals: Array<{ path: string; displayName: string }> = [];
+    let caldavFallbackFetchEnabled = this.plugin.settings.caldavFallbackFetchEnabled;
     let feedUrl = '';
 
     new Setting(contentEl)
@@ -572,6 +603,14 @@ class AddSourceModal extends Modal {
             .onChange(value => { password = value; });
           text.inputEl.type = 'password';
         });
+
+      new Setting(contentEl)
+        .setName('慢速兼容抓取')
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- 中文描述里包含 CalDAV/ICS 专有名词大小写
+        .setDesc('仅当此 CalDAV 源的 REPORT 只返回事件链接时，继续补抓 ICS 详情。飞书可能因此明显变慢。')
+        .addToggle(toggle => toggle
+          .setValue(caldavFallbackFetchEnabled)
+          .onChange(value => { caldavFallbackFetchEnabled = value; }));
 
       const discoveryContainer = contentEl.createDiv();
       new Setting(discoveryContainer)
@@ -670,6 +709,7 @@ class AddSourceModal extends Modal {
             calendarPath: calendarPath.trim() || undefined,
             calendarDisplayName: calendarDisplayName.trim() || undefined,
             selectedCalendars: selectedCaldavCals.length > 0 ? selectedCaldavCals : undefined,
+            fallbackFetchEnabled: caldavFallbackFetchEnabled,
           };
         } else if (type === 'ics') {
           if (!feedUrl.trim()) {
@@ -727,6 +767,7 @@ class EditSourceModal extends Modal {
     let calendarPath = source.caldav?.calendarPath ?? '';
     let calendarDisplayName = source.caldav?.calendarDisplayName ?? '';
     let selectedCaldavCals: Array<{ path: string; displayName: string }> = source.caldav?.selectedCalendars ? [...source.caldav.selectedCalendars] : [];
+    let caldavFallbackFetchEnabled = source.caldav?.fallbackFetchEnabled ?? this.plugin.settings.caldavFallbackFetchEnabled;
     let feedUrl = source.ics?.feedUrl ?? '';
 
     new Setting(contentEl)
@@ -966,6 +1007,14 @@ class EditSourceModal extends Modal {
           text.inputEl.type = 'password';
         });
 
+      new Setting(contentEl)
+        .setName('慢速兼容抓取')
+        // eslint-disable-next-line obsidianmd/ui/sentence-case -- 中文描述里包含 CalDAV 与 href-only 专有名词
+        .setDesc('仅对这个 CalDAV 源启用 href-only 结果的补抓。适合必须依赖该兼容路径的服务；飞书可能因此明显变慢。')
+        .addToggle(toggle => toggle
+          .setValue(caldavFallbackFetchEnabled)
+          .onChange(value => { caldavFallbackFetchEnabled = value; }));
+
       const editDiscoveryContainer = contentEl.createDiv();
       new Setting(editDiscoveryContainer)
         .setName('自动发现网络日历')
@@ -1080,6 +1129,7 @@ class EditSourceModal extends Modal {
             calendarPath: calendarPath.trim() || undefined,
             calendarDisplayName: calendarDisplayName.trim() || undefined,
             selectedCalendars: selectedCaldavCals.length > 0 ? selectedCaldavCals : undefined,
+            fallbackFetchEnabled: caldavFallbackFetchEnabled,
           };
         } else if (source.type === 'ics') {
           updated.ics = { feedUrl: feedUrl.trim() };

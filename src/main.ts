@@ -5,10 +5,12 @@ import {
   DEFAULT_SETTINGS,
   DEFAULT_CACHE,
   DEFAULT_HOLIDAY_CACHE,
+  DEFAULT_CALDAV_CACHE,
   EventCache,
   SyncState,
   HolidayCache,
   HolidayCacheEntry,
+  CalDavCache,
 } from './models/types';
 import { HolidayFetcher } from './lunar/HolidayFetcher';
 import { EventStore } from './store/EventStore';
@@ -22,6 +24,7 @@ export default class UniCalendarPlugin extends Plugin {
   syncManager: SyncManager = new SyncManager(() => { /* replaced in onload */ }, this.eventStore);
   private eventCache: EventCache = DEFAULT_CACHE;
   private holidayCache: HolidayCache = DEFAULT_HOLIDAY_CACHE;
+  private caldavCache: CalDavCache = DEFAULT_CALDAV_CACHE;
   private holidayFetcher: HolidayFetcher = new HolidayFetcher();
   private isHolidayFetching = false;
   private syncIntervalId: number | null = null;
@@ -35,7 +38,19 @@ export default class UniCalendarPlugin extends Plugin {
     this.eventStore.setSourceOrder(this.settings.sources.map(s => s.id));
     this.eventStore.setTitleFilters(this.settings.eventTitleFilters);
 
-    this.syncManager = new SyncManager((state) => this.onSyncStateChange(state), this.eventStore);
+    this.syncManager = new SyncManager(
+      (state) => this.onSyncStateChange(state),
+      this.eventStore,
+      () => ({
+        syncWindowPastMonths: this.settings.syncWindowPastMonths,
+        syncWindowFutureMonths: this.settings.syncWindowFutureMonths,
+        caldavFallbackFetchEnabled: this.settings.caldavFallbackFetchEnabled,
+      }),
+      () => this.caldavCache,
+      (cache) => {
+        this.caldavCache = cache;
+      },
+    );
 
     this.registerView(VIEW_TYPE_CALENDAR, (leaf) => new CalendarView(leaf, this));
 
@@ -92,6 +107,11 @@ export default class UniCalendarPlugin extends Plugin {
     this.settings = Object.assign({}, DEFAULT_SETTINGS, typedData?.settings);
     this.eventCache = Object.assign({}, DEFAULT_CACHE, typedData?.eventCache);
     this.holidayCache = Object.assign({}, DEFAULT_HOLIDAY_CACHE, typedData?.holidayCache);
+    this.caldavCache = {
+      ...DEFAULT_CALDAV_CACHE,
+      ...(typedData?.caldavCache ?? {}),
+      bySource: { ...(typedData?.caldavCache?.bySource ?? {}) },
+    };
   }
 
   async savePluginData(): Promise<void> {
@@ -99,6 +119,7 @@ export default class UniCalendarPlugin extends Plugin {
       settings: this.settings,
       eventCache: this.eventStore.save(),
       holidayCache: this.holidayCache,
+      caldavCache: this.caldavCache,
     };
     await this.saveData(data);
   }

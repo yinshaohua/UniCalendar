@@ -6,9 +6,11 @@ const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
 const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // 5 minutes before expiry
 const TOKEN_RETRY_DELAY_MS = 1200;
+const TOKEN_REQUEST_TIMEOUT_MS = 15000;
 
 export interface GoogleAuthHelperOptions {
   retryDelayMs?: number;
+  tokenRequestTimeoutMs?: number;
 }
 
 type GoogleTokenErrorKind =
@@ -94,9 +96,11 @@ export class GoogleTokenError extends Error {
 
 export class GoogleAuthHelper {
   private readonly retryDelayMs: number;
+  private readonly tokenRequestTimeoutMs: number;
 
   constructor(options: GoogleAuthHelperOptions = {}) {
     this.retryDelayMs = options.retryDelayMs ?? TOKEN_RETRY_DELAY_MS;
+    this.tokenRequestTimeoutMs = options.tokenRequestTimeoutMs ?? TOKEN_REQUEST_TIMEOUT_MS;
   }
 
   generateCodeVerifier(): string {
@@ -256,12 +260,15 @@ export class GoogleAuthHelper {
   private async performTokenRequestOnce(operation: 'exchange' | 'refresh', body: string): Promise<GoogleTokenResponse> {
     let response;
     try {
-      response = await requestUrl({
-        url: TOKEN_ENDPOINT,
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body,
-      });
+      response = await this.withTokenRequestTimeout(
+        requestUrl({
+          url: TOKEN_ENDPOINT,
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body,
+        }),
+        operation,
+      );
     } catch (cause) {
       throw this.mapThrownTokenError(operation, cause);
     }
@@ -398,6 +405,17 @@ export class GoogleAuthHelper {
   }
 
   private mapThrownTokenError(operation: 'exchange' | 'refresh', cause: unknown): GoogleTokenError {
+    if (this.isTokenTimeoutError(cause)) {
+      const action = operation === 'refresh' ? '刷新访问令牌' : '交换授权码';
+      return new GoogleTokenError({
+        operation,
+        kind: 'network',
+        userMessage: `访问 Google 令牌接口超时（>${this.tokenRequestTimeoutMs}ms），请检查网络或 VPN 连接后重试。`,
+        logMessage: `${action}时连接 Google 令牌接口超时（>${this.tokenRequestTimeoutMs}ms）`,
+        cause,
+      });
+    }
+
     const status = this.extractStatus(cause);
     const payload = this.extractThrownTokenPayload(cause);
     if (status !== undefined || payload.response.error) {
@@ -412,6 +430,33 @@ export class GoogleAuthHelper {
       logMessage: `${action}时无法访问 Google 令牌接口`,
       cause,
     });
+  }
+
+  private async withTokenRequestTimeout<T>(promise: Promise<T>, operation: 'exchange' | 'refresh'): Promise<T> {
+    const timeoutMs = this.tokenRequestTimeoutMs;
+    return new Promise<T>((resolve, reject) => {
+      const timeoutId = globalThis.setTimeout(() => {
+        reject(new Error(`GOOGLE_TOKEN_REQUEST_TIMEOUT:${operation}:${timeoutMs}`));
+      }, timeoutMs);
+
+      promise.then(
+        (value) => {
+          globalThis.clearTimeout(timeoutId);
+          resolve(value);
+        },
+        (error: unknown) => {
+          globalThis.clearTimeout(timeoutId);
+          // Preserve the original cause (could be a non-Error POJO from
+          // requestUrl) so downstream mappers can still extract status/headers.
+          // eslint-disable-next-line @typescript-eslint/prefer-promise-reject-errors -- propagate diagnostic-rich cause unchanged
+          reject(error);
+        },
+      );
+    });
+  }
+
+  private isTokenTimeoutError(cause: unknown): boolean {
+    return cause instanceof Error && cause.message.startsWith('GOOGLE_TOKEN_REQUEST_TIMEOUT:');
   }
 
   private mapApiTokenError(

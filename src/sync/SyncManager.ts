@@ -1,4 +1,4 @@
-import { CalendarSource, SyncState } from '../models/types';
+import { CalendarSource, SyncState, UniCalendarSettings, CalDavCache } from '../models/types';
 import { IcsSyncAdapter } from './IcsSyncAdapter';
 import { CalDavSyncAdapter } from './CalDavSyncAdapter';
 import { GoogleSyncAdapter } from './GoogleSyncAdapter';
@@ -9,14 +9,26 @@ export class SyncManager {
   private state: SyncState = { status: 'idle', lastSyncTime: null };
   private onStateChange: (state: SyncState) => void;
   private eventStore: EventStore;
+  private settingsProvider?: () => Pick<UniCalendarSettings, 'syncWindowPastMonths' | 'syncWindowFutureMonths' | 'caldavFallbackFetchEnabled'>;
+  private caldavCacheProvider?: () => CalDavCache;
+  private onCaldavCacheChange?: (cache: CalDavCache) => void;
   private icsAdapter: IcsSyncAdapter = new IcsSyncAdapter();
   private caldavAdapter: CalDavSyncAdapter = new CalDavSyncAdapter(this.icsAdapter);
   private authHelper: GoogleAuthHelper = new GoogleAuthHelper();
   private googleAdapter: GoogleSyncAdapter = new GoogleSyncAdapter(this.authHelper);
 
-  constructor(onStateChange: (state: SyncState) => void, eventStore: EventStore) {
+  constructor(
+    onStateChange: (state: SyncState) => void,
+    eventStore: EventStore,
+    settingsProvider?: () => Pick<UniCalendarSettings, 'syncWindowPastMonths' | 'syncWindowFutureMonths' | 'caldavFallbackFetchEnabled'>,
+    caldavCacheProvider?: () => CalDavCache,
+    onCaldavCacheChange?: (cache: CalDavCache) => void,
+  ) {
     this.onStateChange = onStateChange;
     this.eventStore = eventStore;
+    this.settingsProvider = settingsProvider;
+    this.caldavCacheProvider = caldavCacheProvider;
+    this.onCaldavCacheChange = onCaldavCacheChange;
   }
 
   private setState(newState: SyncState): void {
@@ -39,14 +51,25 @@ export class SyncManager {
 
     this.setState({ status: 'syncing', startedAt: Date.now() });
 
-    // Compute sync date range: 3 months before and after now
+    const syncStartedAt = performance.now();
+    const windowConfig = this.settingsProvider?.() ?? {
+      syncWindowPastMonths: 1,
+      syncWindowFutureMonths: 3,
+      caldavFallbackFetchEnabled: true,
+    };
+    const pastMonths = this.normalizeSyncWindowMonths(windowConfig.syncWindowPastMonths, 1);
+    const futureMonths = this.normalizeSyncWindowMonths(windowConfig.syncWindowFutureMonths, 3);
+
     const now = new Date();
     const rangeStart = new Date(now);
-    rangeStart.setMonth(rangeStart.getMonth() - 3);
+    rangeStart.setMonth(rangeStart.getMonth() - pastMonths);
     const rangeEnd = new Date(now);
-    rangeEnd.setMonth(rangeEnd.getMonth() + 3);
+    rangeEnd.setMonth(rangeEnd.getMonth() + futureMonths);
 
-    // Clean up orphaned events from deleted sources
+    console.debug(
+      `[UniCalendar] Sync started: totalSources=${sources.length}, enabledSources=${sources.filter(s => s.enabled).length}, window=${rangeStart.toISOString()}..${rangeEnd.toISOString()} (past=${pastMonths}m future=${futureMonths}m)`,
+    );
+
     const sourceIds = new Set(sources.map(s => s.id));
     this.eventStore.removeOrphanedEvents(sourceIds);
 
@@ -55,18 +78,27 @@ export class SyncManager {
 
     const results = await Promise.allSettled(
       enabledSources.map(async (source) => {
+        const sourceStartedAt = performance.now();
+        const sourceLabel = `${source.type}:${source.name}`;
+        console.debug(`[UniCalendar] Source sync started: ${sourceLabel}`);
+
         if (source.type === 'ics') {
           const events = await this.icsAdapter.sync(source, rangeStart, rangeEnd);
           this.eventStore.replaceEvents(source.id, events);
-          console.debug(`[UniCalendar] Synced ${events.length} events from ICS source "${source.name}"`);
+          console.debug(`[UniCalendar] Source sync finished: ${sourceLabel}, events=${events.length}, durationMs=${Math.round(performance.now() - sourceStartedAt)}`);
         } else if (source.type === 'caldav') {
-          const events = await this.caldavAdapter.sync(source, rangeStart, rangeEnd);
+          const events = await this.caldavAdapter.sync(source, rangeStart, rangeEnd, {
+            fallbackFetchEnabled: source.caldav?.fallbackFetchEnabled ?? windowConfig.caldavFallbackFetchEnabled,
+            fallbackTimeoutMs: source.caldav?.fallbackTimeoutMs,
+            cache: this.caldavCacheProvider?.(),
+            onCacheChange: this.onCaldavCacheChange,
+          });
           this.eventStore.replaceEvents(source.id, events);
-          console.debug(`[UniCalendar] Synced ${events.length} events from CalDAV source "${source.name}"`);
+          console.debug(`[UniCalendar] Source sync finished: ${sourceLabel}, events=${events.length}, durationMs=${Math.round(performance.now() - sourceStartedAt)}`);
         } else if (source.type === 'google') {
           const events = await this.googleAdapter.sync(source, rangeStart, rangeEnd);
           this.eventStore.replaceEvents(source.id, events);
-          console.debug(`[UniCalendar] Synced ${events.length} events from Google source "${source.name}"`);
+          console.debug(`[UniCalendar] Source sync finished: ${sourceLabel}, events=${events.length}, durationMs=${Math.round(performance.now() - sourceStartedAt)}`);
         } else {
           console.warn(`[UniCalendar] Source "${source.name}" type "${String(source.type)}" is not yet supported.`);
         }
@@ -83,6 +115,8 @@ export class SyncManager {
       }
     }
 
+    console.debug(`[UniCalendar] Sync finished: durationMs=${Math.round(performance.now() - syncStartedAt)}, errors=${errors.length}`);
+
     if (errors.length > 0) {
       this.setState({
         status: 'error',
@@ -94,14 +128,20 @@ export class SyncManager {
     }
   }
 
+  private normalizeSyncWindowMonths(value: number | undefined, fallback: number): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return fallback;
+    }
+
+    return Math.max(0, Math.min(12, Math.round(value)));
+  }
+
   private formatSyncError(reason: unknown): string {
     if (reason instanceof GoogleTokenError) {
       console.error('[UniCalendar] Google token flow diagnostic', reason.toLogObject());
       return reason.userMessage;
     }
 
-    return reason instanceof Error
-      ? reason.message
-      : String(reason);
+    return reason instanceof Error ? reason.message : String(reason);
   }
 }

@@ -149,4 +149,44 @@ describe('SyncManager', () => {
     expect(consoleErrorSpy).toHaveBeenCalled();
     expect(states.at(-1)?.status).toBe('error');
   });
+
+  it('passes source-level CalDAV fallback timeout and cache hooks', async () => {
+    const cache = { bySource: {} };
+    const onCacheChange = vi.fn();
+    const manager = new SyncManager(
+      () => {},
+      new EventStore(),
+      () => ({
+        syncWindowPastMonths: 1,
+        syncWindowFutureMonths: 3,
+        caldavFallbackFetchEnabled: false,
+      }),
+      () => cache,
+      onCacheChange,
+    );
+    const source = makeSource({
+      type: 'caldav',
+      caldav: {
+        serverUrl: 'https://caldav.feishu.cn',
+        username: 'user@example.com',
+        password: 'secret',
+        calendarPath: '/calendar/primary/',
+        fallbackFetchEnabled: true,
+        fallbackTimeoutMs: 8000,
+      },
+    });
+
+    const caldavAdapter = (manager as unknown as { caldavAdapter: { sync: (source: CalendarSource, rangeStart: Date, rangeEnd: Date, options?: { fallbackFetchEnabled?: boolean; fallbackTimeoutMs?: number; cache?: unknown; onCacheChange?: unknown }) => Promise<unknown[]> } }).caldavAdapter;
+    const syncSpy = vi.spyOn(caldavAdapter, 'sync').mockResolvedValueOnce([]);
+
+    await manager.syncAll([source]);
+
+    expect(syncSpy).toHaveBeenCalledOnce();
+    expect(syncSpy.mock.calls[0]?.[3]).toMatchObject({
+      fallbackFetchEnabled: true,
+      fallbackTimeoutMs: 8000,
+      cache,
+      onCacheChange,
+    });
+  });
 });

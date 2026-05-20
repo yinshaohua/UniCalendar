@@ -4,6 +4,7 @@ import {
   getNextColor,
   DEFAULT_SETTINGS,
   DEFAULT_CACHE,
+  DEFAULT_CALDAV_CACHE,
   CalendarSource,
   GoogleSyncDiagnostic,
 } from '../../src/models/types';
@@ -45,7 +46,47 @@ describe('DEFAULT_SETTINGS', () => {
   it('has correct defaults', () => {
     expect(DEFAULT_SETTINGS.sources).toEqual([]);
     expect(DEFAULT_SETTINGS.syncInterval).toBe(15);
+    expect(DEFAULT_SETTINGS.syncWindowPastMonths).toBe(1);
+    expect(DEFAULT_SETTINGS.syncWindowFutureMonths).toBe(3);
+    expect(DEFAULT_SETTINGS.caldavFallbackFetchEnabled).toBe(true);
     expect(DEFAULT_SETTINGS.defaultView).toBe('month');
+  });
+
+  it('allows source-level CalDAV fallback override', () => {
+    const source: CalendarSource = {
+      id: 'caldav-1',
+      name: 'Feishu',
+      type: 'caldav',
+      color: '#74C0FC',
+      enabled: true,
+      caldav: {
+        serverUrl: 'https://caldav.feishu.cn',
+        username: 'u',
+        password: 'p',
+        fallbackFetchEnabled: true,
+      },
+    };
+
+    expect(source.caldav?.fallbackFetchEnabled).toBe(true);
+  });
+
+  it('allows source-level CalDAV fallback timeout override', () => {
+    const source: CalendarSource = {
+      id: 'caldav-2',
+      name: 'Feishu Slow',
+      type: 'caldav',
+      color: '#74C0FC',
+      enabled: true,
+      caldav: {
+        serverUrl: 'https://caldav.feishu.cn',
+        username: 'u',
+        password: 'p',
+        fallbackFetchEnabled: true,
+        fallbackTimeoutMs: 8000,
+      },
+    };
+
+    expect(source.caldav?.fallbackTimeoutMs).toBe(8000);
   });
 
   it('has showLunarCalendar defaulting to true', () => {
@@ -67,6 +108,12 @@ describe('DEFAULT_CACHE', () => {
     expect(DEFAULT_CACHE.lastSyncTime).toBeNull();
     expect(DEFAULT_CACHE.cacheWindowStart).toBe('');
     expect(DEFAULT_CACHE.cacheWindowEnd).toBe('');
+  });
+});
+
+describe('DEFAULT_CALDAV_CACHE', () => {
+  it('starts empty', () => {
+    expect(DEFAULT_CALDAV_CACHE.bySource).toEqual({});
   });
 });
 

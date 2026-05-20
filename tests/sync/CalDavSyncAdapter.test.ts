@@ -230,7 +230,7 @@ describe('CalDavSyncAdapter', () => {
 
     await expect(
       adapter.sync(source, new Date('2026-04-01T00:00:00Z'), new Date('2026-04-30T00:00:00Z')),
-    ).rejects.toThrow(/未包含可解析的calendar-data/);
+    ).rejects.toThrow(/只返回事件链接且已禁用慢速补抓|未包含可解析的calendar-data/);
   });
 
   it('throws a diagnostic error when all returned calendar-data payloads fail to parse', async () => {
@@ -244,7 +244,7 @@ describe('CalDavSyncAdapter', () => {
           <d:response>
             <d:propstat>
               <d:prop>
-                <c:calendar-data>not valid ics</c:calendar-data>
+                <c:calendar-data>BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:bad-1\r\nEND:VEVENT\r\nEND:VCALENDAR</c:calendar-data>
               </d:prop>
             </d:propstat>
           </d:response>
@@ -262,10 +262,31 @@ describe('CalDavSyncAdapter', () => {
     ).rejects.toThrow(/全部解析失败/);
   });
 
-  it('extracts event resource hrefs from REPORT responses without inline calendar-data', () => {
+  it('ignores empty or non-ICS calendar-data fragments while parsing REPORT payloads', () => {
     const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
 
-    const hrefs = adapter.parseEventResourceHrefs(
+    const payloads = adapter.parseEventReportXml(
+      `<?xml version="1.0" encoding="UTF-8"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:response>
+            <d:propstat>
+              <d:prop>
+                <c:calendar-data/>
+                <c:calendar-data>not valid ics</c:calendar-data>
+                <c:calendar-data>BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR</c:calendar-data>
+              </d:prop>
+            </d:propstat>
+          </d:response>
+        </d:multistatus>`,
+    );
+
+    expect(payloads).toEqual(['BEGIN:VCALENDAR\r\nVERSION:2.0\r\nEND:VCALENDAR']);
+  });
+
+  it('extracts event resource hrefs and etags from REPORT responses without inline calendar-data', () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+
+    const resources = adapter.parseEventResourceDescriptors(
       `<?xml version="1.0" encoding="UTF-8"?>
         <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
           <d:response>
@@ -287,7 +308,7 @@ describe('CalDavSyncAdapter', () => {
       'https://caldav.feishu.cn',
     );
 
-    expect(hrefs).toEqual(['https://caldav.feishu.cn/calendar/primary/event-1.ics']);
+    expect(resources).toEqual([{ href: 'https://caldav.feishu.cn/calendar/primary/event-1.ics', etag: '123' }]);
   });
 
   it('fetches ICS bodies via calendar-multiget when REPORT returns hrefs without inline calendar-data', async () => {
@@ -337,6 +358,7 @@ describe('CalDavSyncAdapter', () => {
       source,
       new Date('2026-04-01T00:00:00Z'),
       new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true },
     );
 
     expect(events).toHaveLength(1);
@@ -347,12 +369,236 @@ describe('CalDavSyncAdapter', () => {
       method: 'REPORT',
       url: 'https://caldav.feishu.cn/calendar/primary/',
     });
-    const secondCallBody = typeof secondCall === 'string' ? '' : String(secondCall?.body ?? '');
+    const secondCallBody = typeof secondCall === 'string'
+      ? ''
+      : (typeof secondCall?.body === 'string' ? secondCall.body : '');
     expect(secondCallBody).toContain('calendar-multiget');
     expect(secondCallBody).toContain('/calendar/primary/event-1.ics');
   });
 
-  it('surfaces a diagnostic error when event href fallback is discovered but GET is forbidden', async () => {
+  it('keeps valid ICS payloads from calendar-multiget even when the response also contains invalid fragments', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+
+    mockedRequestUrl
+      .mockResolvedValueOnce({
+        text: `<?xml version="1.0" encoding="UTF-8"?>
+          <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:response>
+              <d:href>/calendar/primary/event-1.ics</d:href>
+              <d:propstat>
+                <d:prop><d:getetag>123</d:getetag></d:prop>
+                <d:status>HTTP/1.1 200 OK</d:status>
+              </d:propstat>
+              <d:propstat>
+                <d:prop><c:calendar-data/></d:prop>
+                <d:status>HTTP/1.1 404 Not Found</d:status>
+              </d:propstat>
+            </d:response>
+          </d:multistatus>`,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>)
+      .mockResolvedValueOnce({
+        text: `<?xml version="1.0" encoding="UTF-8"?>
+          <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:response>
+              <d:propstat>
+                <d:prop>
+                  <c:calendar-data>BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1\r\nDTSTART:20260408T100000Z\r\nDTEND:20260408T110000Z\r\nSUMMARY:Fetched Event A\r\nEND:VEVENT\r\nEND:VCALENDAR</c:calendar-data>
+                  <c:calendar-data>not valid ics</c:calendar-data>
+                </d:prop>
+                <d:status>HTTP/1.1 200 OK</d:status>
+              </d:propstat>
+            </d:response>
+          </d:multistatus>`,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>);
+
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.title).toBe('Fetched Event A');
+    expect(mockedRequestUrl).toHaveBeenCalledTimes(2);
+    expect(consoleWarnSpy).not.toHaveBeenCalledWith(
+      '[UniCalendar] Failed to parse CalDAV event payload:',
+      expect.anything(),
+    );
+  });
+
+  it('reuses cached ICS bodies when href etag is unchanged', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+    const cache = {
+      bySource: {
+        'feishu-source': {
+          '/calendar/primary/': {
+            cachedEvents: [],
+            lastSuccessfulSyncAt: 123,
+            resourcesByHref: {
+              'https://caldav.feishu.cn/calendar/primary/event-1.ics': {
+                href: 'https://caldav.feishu.cn/calendar/primary/event-1.ics',
+                etag: '123',
+                icsText: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1\r\nDTSTART:20260408T100000Z\r\nDTEND:20260408T110000Z\r\nSUMMARY:Cached Event\r\nEND:VEVENT\r\nEND:VCALENDAR',
+                cachedAt: 123,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    mockedRequestUrl.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:response>
+            <d:href>/calendar/primary/event-1.ics</d:href>
+            <d:propstat>
+              <d:prop><d:getetag>123</d:getetag></d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+            <d:propstat>
+              <d:prop><c:calendar-data/></d:prop>
+              <d:status>HTTP/1.1 404 Not Found</d:status>
+            </d:propstat>
+          </d:response>
+        </d:multistatus>`,
+      status: 207,
+      json: {},
+      headers: {},
+      arrayBuffer: new ArrayBuffer(0),
+    } as Awaited<ReturnType<typeof requestUrl>>);
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true, cache, onCacheChange: vi.fn() },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.title).toBe('Cached Event');
+    expect(mockedRequestUrl).toHaveBeenCalledTimes(1);
+  });
+
+  it('falls back to cached calendar events when href-only fallback yields no bodies and cache already has matching resource', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource({
+      caldav: {
+        serverUrl: 'https://caldav.feishu.cn',
+        username: 'user@example.com',
+        password: 'secret',
+        selectedCalendars: [{ path: '/calendar/primary/', displayName: 'Primary' }],
+        fallbackTimeoutMs: 1,
+      },
+    });
+    const cache = {
+      bySource: {
+        'feishu-source': {
+          '/calendar/primary/': {
+            cachedEvents: [{
+              id: 'feishu-source::cached-1',
+              sourceId: 'feishu-source',
+              uid: 'cached-1',
+              title: 'Cached Calendar Event',
+              start: '2026-04-08T10:00:00.000Z',
+              end: '2026-04-08T11:00:00.000Z',
+              allDay: false,
+            }],
+            lastSuccessfulSyncAt: Date.now() - 1000,
+            resourcesByHref: {
+              'https://caldav.feishu.cn/calendar/primary/event-1.ics': {
+                href: 'https://caldav.feishu.cn/calendar/primary/event-1.ics',
+                etag: '123',
+                icsText: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:cached-1\r\nDTSTART:20260408T100000Z\r\nDTEND:20260408T110000Z\r\nSUMMARY:Cached Calendar Event\r\nEND:VEVENT\r\nEND:VCALENDAR',
+                cachedAt: 123,
+              },
+            },
+          },
+        },
+      },
+    };
+
+    mockedRequestUrl.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:response>
+            <d:href>/calendar/primary/event-1.ics</d:href>
+            <d:propstat>
+              <d:prop><d:getetag>123</d:getetag></d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+            <d:propstat>
+              <d:prop><c:calendar-data/></d:prop>
+              <d:status>HTTP/1.1 404 Not Found</d:status>
+            </d:propstat>
+          </d:response>
+        </d:multistatus>`,
+      status: 207,
+      json: {},
+      headers: {},
+      arrayBuffer: new ArrayBuffer(0),
+    } as Awaited<ReturnType<typeof requestUrl>>);
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true, fallbackTimeoutMs: 1, cache, onCacheChange: vi.fn() },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.title).toBe('Cached Calendar Event');
+  });
+
+  it('skips href-only calendar when fallback times out and there is no cache', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+
+    mockedRequestUrl.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:response>
+            <d:href>/calendar/primary/event-1.ics</d:href>
+            <d:propstat>
+              <d:prop><d:getetag>123</d:getetag></d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+            <d:propstat>
+              <d:prop><c:calendar-data/></d:prop>
+              <d:status>HTTP/1.1 404 Not Found</d:status>
+            </d:propstat>
+          </d:response>
+        </d:multistatus>`,
+      status: 207,
+      json: {},
+      headers: {},
+      arrayBuffer: new ArrayBuffer(0),
+    } as Awaited<ReturnType<typeof requestUrl>>);
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true, fallbackTimeoutMs: 1, cache: { bySource: {} }, onCacheChange: vi.fn() },
+    );
+
+    expect(events).toEqual([]);
+  });
+
+  it('skips href-only calendar when event fallback is forbidden and there is no cache', async () => {
     const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
     const source = makeCalDavSource();
 
@@ -381,13 +627,101 @@ describe('CalDavSyncAdapter', () => {
 
     consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    await expect(
-      adapter.sync(
-        source,
-        new Date('2026-04-01T00:00:00Z'),
-        new Date('2026-04-30T00:00:00Z'),
-      ),
-    ).rejects.toThrow(/拉取ICS详情失败/);
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true },
+    );
+
+    expect(events).toEqual([]);
+  });
+
+  it('uses stale calendar cache when forbidden GET and late calendar-multiget produce no bodies', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+    const cache = {
+      bySource: {
+        'feishu-source': {
+          '/calendar/primary/': {
+            cachedEvents: [
+              {
+                id: 'cached-event',
+                uid: 'cached-event',
+                title: 'Cached Calendar Event',
+                start: '2026-04-08T10:00:00.000Z',
+                end: '2026-04-08T11:00:00.000Z',
+                sourceId: 'feishu-source',
+                calendarName: 'Primary',
+                color: '#74C0FC',
+                allDay: false,
+              },
+            ],
+            lastSuccessfulSyncAt: Date.now() - 1000,
+            resourcesByHref: {},
+          },
+        },
+      },
+    };
+
+    mockedRequestUrl
+      .mockResolvedValueOnce({
+        text: `<?xml version="1.0" encoding="UTF-8"?>
+          <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:response>
+              <d:href>/calendar/primary/event-1.ics</d:href>
+              <d:propstat>
+                <d:prop><d:getetag>changed-etag</d:getetag></d:prop>
+                <d:status>HTTP/1.1 200 OK</d:status>
+              </d:propstat>
+              <d:propstat>
+                <d:prop><c:calendar-data/></d:prop>
+                <d:status>HTTP/1.1 404 Not Found</d:status>
+              </d:propstat>
+            </d:response>
+          </d:multistatus>`,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>)
+      .mockImplementationOnce((async () => {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        return {
+          text: `<?xml version="1.0" encoding="UTF-8"?>
+            <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+              <d:response>
+                <d:href>/calendar/primary/event-1.ics</d:href>
+                <d:propstat>
+                  <d:prop><d:getetag>changed-etag</d:getetag></d:prop>
+                  <d:status>HTTP/1.1 200 OK</d:status>
+                </d:propstat>
+                <d:propstat>
+                  <d:prop><c:calendar-data/></d:prop>
+                  <d:status>HTTP/1.1 404 Not Found</d:status>
+                </d:propstat>
+              </d:response>
+            </d:multistatus>`,
+          status: 207,
+          json: {},
+          headers: {},
+          arrayBuffer: new ArrayBuffer(0),
+        } as Awaited<ReturnType<typeof requestUrl>>;
+      }) as unknown as typeof requestUrl)
+      .mockRejectedValueOnce({ status: 403, message: 'Request failed, status 403' });
+
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true, fallbackTimeoutMs: 1000, cache, onCacheChange: vi.fn() },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.title).toBe('Cached Calendar Event');
+    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('usingCachedEvents=1'));
   });
 
   it('returns parsed events when calendar-data payload is valid ICS', async () => {
@@ -420,5 +754,237 @@ describe('CalDavSyncAdapter', () => {
     expect(events).toHaveLength(1);
     expect(events[0]?.sourceId).toBe('feishu-source');
     expect(events[0]?.title).toBe('Feishu Event');
+  });
+
+  it('switches to GET fallback when calendar-multiget is slower than its short budget', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+
+    mockedRequestUrl
+      .mockResolvedValueOnce({
+        text: `<?xml version="1.0" encoding="UTF-8"?>
+          <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:response>
+              <d:href>/calendar/primary/event-1.ics</d:href>
+              <d:propstat>
+                <d:prop><d:getetag>123</d:getetag></d:prop>
+                <d:status>HTTP/1.1 200 OK</d:status>
+              </d:propstat>
+              <d:propstat>
+                <d:prop><c:calendar-data/></d:prop>
+                <d:status>HTTP/1.1 404 Not Found</d:status>
+              </d:propstat>
+            </d:response>
+          </d:multistatus>`,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>)
+      .mockImplementationOnce((async () => {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        return {
+          text: `<?xml version="1.0" encoding="UTF-8"?><d:multistatus xmlns:d="DAV:" />`,
+          status: 207,
+          json: {},
+          headers: {},
+          arrayBuffer: new ArrayBuffer(0),
+        } as Awaited<ReturnType<typeof requestUrl>>;
+      }) as unknown as typeof requestUrl)
+      .mockResolvedValueOnce({
+        text: 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1\r\nDTSTART:20260408T100000Z\r\nDTEND:20260408T110000Z\r\nSUMMARY:GET Event\r\nEND:VEVENT\r\nEND:VCALENDAR',
+        status: 200,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>);
+
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true, fallbackTimeoutMs: 10000 },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.title).toBe('GET Event');
+    expect(mockedRequestUrl).toHaveBeenCalledTimes(3);
+    expect(mockedRequestUrl.mock.calls[2]?.[0]).toMatchObject({
+      method: 'GET',
+      url: 'https://caldav.feishu.cn/calendar/primary/event-1.ics',
+    });
+    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('calendar-multiget fallback timed out'));
+  });
+
+  it('waits for late calendar-multiget when GET fallback is forbidden with 403', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+
+    mockedRequestUrl
+      .mockResolvedValueOnce({
+        text: `<?xml version="1.0" encoding="UTF-8"?>
+          <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:response>
+              <d:href>/calendar/primary/event-1.ics</d:href>
+              <d:propstat>
+                <d:prop><d:getetag>123</d:getetag></d:prop>
+                <d:status>HTTP/1.1 200 OK</d:status>
+              </d:propstat>
+              <d:propstat>
+                <d:prop><c:calendar-data/></d:prop>
+                <d:status>HTTP/1.1 404 Not Found</d:status>
+              </d:propstat>
+            </d:response>
+          </d:multistatus>`,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>)
+      .mockImplementationOnce((async () => {
+        await new Promise(resolve => setTimeout(resolve, 11000));
+        return {
+          text: `<?xml version="1.0" encoding="UTF-8"?>
+            <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+              <d:response>
+                <d:propstat>
+                  <d:prop>
+                    <c:calendar-data>BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-1\r\nDTSTART:20260408T100000Z\r\nDTEND:20260408T110000Z\r\nSUMMARY:Late Multiget Event\r\nEND:VEVENT\r\nEND:VCALENDAR</c:calendar-data>
+                  </d:prop>
+                  <d:status>HTTP/1.1 200 OK</d:status>
+                </d:propstat>
+              </d:response>
+            </d:multistatus>`,
+          status: 207,
+          json: {},
+          headers: {},
+          arrayBuffer: new ArrayBuffer(0),
+        } as Awaited<ReturnType<typeof requestUrl>>;
+      }) as unknown as typeof requestUrl)
+      .mockRejectedValueOnce({ status: 403, message: 'Request failed, status 403' });
+
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true, fallbackTimeoutMs: 10000 },
+    );
+
+    expect(events).toHaveLength(1);
+    expect(events[0]?.title).toBe('Late Multiget Event');
+    expect(mockedRequestUrl).toHaveBeenCalledTimes(3);
+    expect(consoleWarnSpy).toHaveBeenCalledWith(expect.stringContaining('GET fallback returned 403'));
+  }, 15000);
+
+  it('fetches ICS bodies in parallel via GET fallback when calendar-multiget yields no payloads', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+
+    const reportXml = `<?xml version="1.0" encoding="UTF-8"?>
+      <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:response>
+          <d:href>/calendar/primary/event-1.ics</d:href>
+          <d:propstat>
+            <d:prop><d:getetag>e1</d:getetag></d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+          </d:propstat>
+          <d:propstat>
+            <d:prop><c:calendar-data/></d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+          </d:propstat>
+        </d:response>
+        <d:response>
+          <d:href>/calendar/primary/event-2.ics</d:href>
+          <d:propstat>
+            <d:prop><d:getetag>e2</d:getetag></d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+          </d:propstat>
+          <d:propstat>
+            <d:prop><c:calendar-data/></d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+          </d:propstat>
+        </d:response>
+        <d:response>
+          <d:href>/calendar/primary/event-3.ics</d:href>
+          <d:propstat>
+            <d:prop><d:getetag>e3</d:getetag></d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+          </d:propstat>
+          <d:propstat>
+            <d:prop><c:calendar-data/></d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+          </d:propstat>
+        </d:response>
+      </d:multistatus>`;
+
+    const multigetResponseXml = `<?xml version="1.0" encoding="UTF-8"?>
+      <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+        <d:response>
+          <d:propstat>
+            <d:prop><c:calendar-data></c:calendar-data></d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+          </d:propstat>
+        </d:response>
+      </d:multistatus>`;
+
+    let inFlight = 0;
+    let observedMaxInFlight = 0;
+    const startedHrefs: string[] = [];
+
+    mockedRequestUrl
+      .mockResolvedValueOnce({
+        text: reportXml,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>)
+      .mockResolvedValueOnce({
+        text: multigetResponseXml,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>);
+
+    mockedRequestUrl.mockImplementation(((options: string | { url: string; method?: string }) => {
+      const url = typeof options === 'string' ? options : options.url;
+      const method = typeof options === 'string' ? 'GET' : (options.method ?? 'GET');
+      if (method === 'GET' && url.endsWith('.ics')) {
+        startedHrefs.push(url);
+        inFlight++;
+        observedMaxInFlight = Math.max(observedMaxInFlight, inFlight);
+        return (async () => {
+          await new Promise(resolve => setTimeout(resolve, 5));
+          inFlight--;
+          const uid = url.match(/event-(\d)\.ics$/)?.[1] ?? 'x';
+          return {
+            text: `BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:event-${uid}\r\nDTSTART:20260408T100000Z\r\nDTEND:20260408T110000Z\r\nSUMMARY:Event ${uid}\r\nEND:VEVENT\r\nEND:VCALENDAR`,
+            status: 200,
+            json: {},
+            headers: {},
+            arrayBuffer: new ArrayBuffer(0),
+          } as Awaited<ReturnType<typeof requestUrl>>;
+        })();
+      }
+      throw new Error(`Unexpected requestUrl after GET fallback: ${method} ${url}`);
+    }) as unknown as typeof requestUrl);
+
+    consoleWarnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { fallbackFetchEnabled: true, fallbackTimeoutMs: 60000 },
+    );
+
+    expect(events.map(e => e.title).sort()).toEqual(['Event 1', 'Event 2', 'Event 3']);
+    expect(startedHrefs).toHaveLength(3);
+    expect(observedMaxInFlight).toBeGreaterThan(1);
   });
 });

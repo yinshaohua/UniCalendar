@@ -53,7 +53,16 @@ export interface CalendarSource {
     lastRefreshTokenFingerprintUsed?: string;
     lastSyncError?: GoogleSyncDiagnostic;
   };
-  caldav?: { serverUrl: string; username: string; password: string; calendarPath?: string; calendarDisplayName?: string; selectedCalendars?: Array<{ path: string; displayName: string }>; };
+  caldav?: {
+    serverUrl: string;
+    username: string;
+    password: string;
+    calendarPath?: string;
+    calendarDisplayName?: string;
+    selectedCalendars?: Array<{ path: string; displayName: string }>;
+    fallbackFetchEnabled?: boolean;
+    fallbackTimeoutMs?: number;
+  };
   ics?: { feedUrl: string; };
 }
 
@@ -72,6 +81,9 @@ export interface EventTitleFilterRule {
 export interface UniCalendarSettings {
   sources: CalendarSource[];
   syncInterval: number;          // minutes
+  syncWindowPastMonths: number;  // months before now to include during sync
+  syncWindowFutureMonths: number; // months after now to include during sync
+  caldavFallbackFetchEnabled: boolean; // whether CalDAV should fetch event bodies when REPORT returns hrefs only
   defaultView: 'month' | 'week' | 'day';
   monthOverflowMode: 'expand' | 'collapse';
   showLunarCalendar: boolean;    // D-12: show lunar dates, festivals, solar terms in month view
@@ -97,10 +109,28 @@ export interface HolidayCache {
   years: Record<string, HolidayCacheEntry[]>;  // Key is year string e.g. "2026"
 }
 
+export interface CalDavCachedResource {
+  href: string;
+  etag?: string;
+  icsText: string;
+  cachedAt: number;
+}
+
+export interface CalDavCalendarCacheEntry {
+  cachedEvents: CalendarEvent[];
+  lastSuccessfulSyncAt: number;
+  resourcesByHref: Record<string, CalDavCachedResource>;
+}
+
+export interface CalDavCache {
+  bySource: Record<string, Record<string, CalDavCalendarCacheEntry>>;
+}
+
 export interface UniCalendarData {
   settings: UniCalendarSettings;
   eventCache: EventCache;
   holidayCache: HolidayCache;  // Per D-04: cached in plugin data storage
+  caldavCache?: CalDavCache;
 }
 
 export function formatGoogleTokenFingerprint(token: string | undefined): string | undefined {
@@ -145,6 +175,9 @@ export const RECOMMENDED_PALETTE: Array<{ name: string; hex: string }> = [
 export const DEFAULT_SETTINGS: UniCalendarSettings = {
   sources: [],
   syncInterval: 15,
+  syncWindowPastMonths: 1,
+  syncWindowFutureMonths: 3,
+  caldavFallbackFetchEnabled: true,
   defaultView: 'month',
   monthOverflowMode: 'expand',
   showLunarCalendar: true,
@@ -162,4 +195,8 @@ export const DEFAULT_CACHE: EventCache = {
 export const DEFAULT_HOLIDAY_CACHE: HolidayCache = {
   lastFetchTime: null,
   years: {},
+};
+
+export const DEFAULT_CALDAV_CACHE: CalDavCache = {
+  bySource: {},
 };

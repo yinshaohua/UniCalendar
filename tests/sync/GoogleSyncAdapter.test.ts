@@ -139,6 +139,34 @@ describe('GoogleSyncAdapter', () => {
         adapter.sync(source, new Date(), new Date()),
       ).rejects.toThrow(/未选择/);
     });
+
+    it('rejects with timeout-shaped error when source sync exceeds the configured timeout', async () => {
+      const fastTimeoutAdapter = new GoogleSyncAdapter(authHelper, { sourceSyncTimeoutMs: 20 });
+      // Never resolves -> should hit the 20ms source-sync ceiling.
+      vi.mocked(requestUrl).mockImplementation((() => new Promise(() => undefined)) as unknown as typeof requestUrl);
+
+      await expect(
+        fastTimeoutAdapter.sync(makeGoogleSource(), new Date('2026-04-01'), new Date('2026-04-30')),
+      ).rejects.toThrow(/Google 同步超时/);
+    });
+
+    it('rejects with timeout-shaped error when single events page request stalls', async () => {
+      const fastTimeoutAdapter = new GoogleSyncAdapter(authHelper, { eventsRequestTimeoutMs: 20 });
+      vi.mocked(requestUrl).mockImplementation((() => new Promise(() => undefined)) as unknown as typeof requestUrl);
+
+      await expect(
+        fastTimeoutAdapter.sync(makeGoogleSource(), new Date('2026-04-01'), new Date('2026-04-30')),
+      ).rejects.toThrow(/获取 Google 日历事件超时/);
+    });
+  });
+
+  describe('discoverCalendars timeout', () => {
+    it('rejects with localized timeout error when calendarList request stalls', async () => {
+      const fastTimeoutAdapter = new GoogleSyncAdapter(authHelper, { discoveryRequestTimeoutMs: 20 });
+      vi.mocked(requestUrl).mockImplementation((() => new Promise(() => undefined)) as unknown as typeof requestUrl);
+
+      await expect(fastTimeoutAdapter.discoverCalendars('any-token')).rejects.toThrow(/获取 Google 日历列表超时/);
+    });
   });
 
   describe('toCalendarEvent mapping', () => {
