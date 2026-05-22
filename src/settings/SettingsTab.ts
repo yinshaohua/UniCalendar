@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Platform, Plugin, PluginSettingTab, Setting } from 'obsidian';
-import { CalendarSource, GoogleSyncDiagnostic, UniCalendarSettings, EventTitleFilterRule, getNextColor, RECOMMENDED_PALETTE, formatGoogleTokenFingerprint } from '../models/types';
+import { CalendarSource, GoogleSyncDiagnostic, FeishuSyncDiagnostic, UniCalendarSettings, EventTitleFilterRule, getNextColor, RECOMMENDED_PALETTE, formatGoogleTokenFingerprint } from '../models/types';
 import { CalDavSyncAdapter, DiscoveredCalendar } from '../sync/CalDavSyncAdapter';
 import { IcsSyncAdapter } from '../sync/IcsSyncAdapter';
 import { GoogleAuthHelper, GoogleTokenError } from '../sync/GoogleAuthHelper';
@@ -90,6 +90,82 @@ export function formatGoogleDiagnosticLines(source: CalendarSource): string[] {
 
 export function formatGoogleDiagnosticText(source: CalendarSource): string {
   return formatGoogleDiagnosticLines(source).join('\n');
+}
+
+export function formatFeishuSelectionSummary(source: CalendarSource): string | null {
+  if (source.type !== 'feishu' || !source.feishu) {
+    return null;
+  }
+
+  const selCals = source.feishu.selectedCalendars;
+  if (selCals && selCals.length > 0) {
+    const names = selCals.map(c => c.name).join(', ');
+    return `已选日历（${selCals.length}）: ${names}`;
+  }
+
+  if (source.feishu.calendarId) {
+    const calName = source.feishu.calendarName || source.feishu.calendarId;
+    return `已选日历: ${calName}`;
+  }
+
+  return null;
+}
+
+export function formatFeishuErrorPhase(operation: FeishuSyncDiagnostic['operation']): string {
+  switch (operation) {
+    case 'exchange':
+      return '授权换取令牌';
+    case 'refresh':
+      return '刷新访问令牌';
+    case 'calendar-list':
+      return '拉取飞书日历列表';
+    case 'instance-view':
+      return '拉取飞书日程实例';
+    default:
+      return operation;
+  }
+}
+
+export function formatFeishuErrorSummary(source: CalendarSource): string | null {
+  if (source.type !== 'feishu' || !source.feishu?.lastSyncError) {
+    return null;
+  }
+
+  const error = source.feishu.lastSyncError;
+  const phase = formatFeishuErrorPhase(error.operation);
+  const time = formatGoogleErrorTime(error.timestamp);
+  return `上次失败: ${error.message}（阶段：${phase}；时间：${time}）`;
+}
+
+export function formatFeishuDiagnosticLines(source: CalendarSource): string[] {
+  if (source.type !== 'feishu' || !source.feishu?.lastSyncError) {
+    return [];
+  }
+
+  const error = source.feishu.lastSyncError;
+  return [
+    'UniCalendar Feishu 诊断',
+    `- source: ${source.name}`,
+    `- operation: ${error.operation}`,
+    `- phase: ${formatFeishuErrorPhase(error.operation)}`,
+    `- kind: ${error.kind}`,
+    `- status: ${error.status ?? ''}`,
+    `- apiCode: ${error.apiCode ?? ''}`,
+    `- apiError: ${error.apiError ?? ''}`,
+    `- apiErrorDescription: ${error.apiErrorDescription ?? ''}`,
+    `- calendarId: ${error.calendarId ?? ''}`,
+    `- windowStart: ${error.windowStart ?? ''}`,
+    `- windowEnd: ${error.windowEnd ?? ''}`,
+    `- tokenFingerprint: ${error.tokenFingerprint ?? source.feishu.refreshTokenFingerprint ?? ''}`,
+    `- tokenSavedAt: ${error.tokenSavedAt ? formatGoogleErrorTime(error.tokenSavedAt) : ''}`,
+    `- refreshTokenExpiresAt: ${error.refreshTokenExpiresAt ? formatGoogleErrorTime(error.refreshTokenExpiresAt) : ''}`,
+    `- message: ${error.message}`,
+    `- timestamp: ${formatGoogleErrorTime(error.timestamp)}`,
+  ];
+}
+
+export function formatFeishuDiagnosticText(source: CalendarSource): string {
+  return formatFeishuDiagnosticLines(source).join('\n');
 }
 
 function addSettingHeading(containerEl: HTMLElement, title: string): void {
@@ -725,7 +801,12 @@ class EditSourceModal extends Modal {
   }
 
   onOpen(): void {
-    const typeLabels = { google: 'Google 日历', caldav: 'CalDAV', ics: 'ICS 订阅' };
+    const typeLabels: Record<CalendarSource['type'], string> = {
+      google: 'Google 日历',
+      caldav: 'CalDAV',
+      ics: 'ICS 订阅',
+      feishu: '飞书日历',
+    };
     this.titleEl.setText(`编辑${typeLabels[this.source.type]}源`);
 
     const { contentEl } = this;

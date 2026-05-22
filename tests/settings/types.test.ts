@@ -7,6 +7,8 @@ import {
   DEFAULT_CALDAV_CACHE,
   CalendarSource,
   GoogleSyncDiagnostic,
+  FeishuSyncDiagnostic,
+  formatFeishuTokenFingerprint,
 } from '../../src/models/types';
 
 function makeSource(color: string): CalendarSource {
@@ -143,5 +145,80 @@ describe('GoogleSyncDiagnostic shape', () => {
 
     expect(source.google?.lastSyncError?.operation).toBe('refresh');
     expect(source.google?.lastSyncError?.status).toBe(503);
+  });
+});
+
+describe('Feishu source shape', () => {
+  it('supports persisted Feishu auth and calendar selection fields on a source', () => {
+    const source: CalendarSource = {
+      id: 'feishu-1',
+      name: 'Feishu',
+      type: 'feishu',
+      color: '#74C0FC',
+      enabled: true,
+      feishu: {
+        appId: 'cli_xxx',
+        appSecret: 'secret',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+        tokenExpiry: 1234567890,
+        refreshTokenExpiry: 1234569999,
+        refreshTokenFingerprint: 'eyJhbG…1234',
+        refreshTokenSavedAt: 1234500000,
+        lastRefreshAttemptAt: 1234550000,
+        lastRefreshTokenFingerprintUsed: 'eyJhbG…1234',
+        firstAuthorizedAt: 1234000000,
+        selectedCalendars: [
+          { id: 'cal_1', name: '主日历', type: 'primary', role: 'owner' },
+        ],
+        calendarId: 'cal_1',
+        calendarName: '主日历',
+      },
+    };
+
+    expect(source.feishu?.appId).toBe('cli_xxx');
+    expect(source.feishu?.selectedCalendars?.[0]?.type).toBe('primary');
+    expect(source.feishu?.lastRefreshTokenFingerprintUsed).toBe('eyJhbG…1234');
+  });
+
+  it('supports persisted Feishu error diagnostics on a source', () => {
+    const diagnostic: FeishuSyncDiagnostic = {
+      message: '飞书访问令牌已失效，请重新授权。',
+      kind: 'invalid_grant',
+      operation: 'refresh',
+      timestamp: 1234567890,
+      status: 400,
+      apiCode: 20064,
+      apiError: 'invalid_grant',
+      apiErrorDescription: 'refresh token expired',
+      calendarId: 'cal_1',
+      windowStart: '2026-05-01T00:00:00.000Z',
+      windowEnd: '2026-05-08T00:00:00.000Z',
+      tokenFingerprint: 'eyJhbG…1234',
+      tokenSavedAt: 1234500000,
+      refreshTokenExpiresAt: 1239999999,
+    };
+
+    const source: CalendarSource = {
+      id: 'feishu-2',
+      name: 'Feishu',
+      type: 'feishu',
+      color: '#74C0FC',
+      enabled: true,
+      feishu: {
+        appId: 'cli_xxx',
+        appSecret: 'secret',
+        lastSyncError: diagnostic,
+      },
+    };
+
+    expect(source.feishu?.lastSyncError?.apiCode).toBe(20064);
+    expect(source.feishu?.lastSyncError?.operation).toBe('refresh');
+  });
+
+  it('formats Feishu token fingerprint safely', () => {
+    expect(formatFeishuTokenFingerprint('eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9')).toBe('eyJhbG…VCJ9');
+    expect(formatFeishuTokenFingerprint('  abcdefghij  ')).toBe('abc…ij');
+    expect(formatFeishuTokenFingerprint('')).toBeUndefined();
   });
 });

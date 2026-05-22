@@ -32,10 +32,51 @@ export interface GoogleSyncDiagnostic {
   tokenLastRefreshedAt?: number;
 }
 
+export interface FeishuSelectedCalendar {
+  id: string;
+  name: string;
+  type?: 'primary' | 'shared';
+  role?: string;
+}
+
+export interface FeishuSyncDiagnostic {
+  message: string;
+  kind:
+    | 'network'
+    | 'invalid_grant'
+    | 'invalid_client'
+    | 'access_denied'
+    | 'invalid_scope'
+    | 'invalid_request'
+    | 'rate_limited'
+    | 'temporarily_unavailable'
+    | 'server'
+    | 'no_permission'
+    | 'calendar_not_found'
+    | 'invalid_calendar_id'
+    | 'invalid_calendar_type'
+    | 'user_dismiss'
+    | 'instance_view_truncated'
+    | 'unexpected_response'
+    | 'unknown';
+  operation: 'exchange' | 'refresh' | 'calendar-list' | 'instance-view';
+  timestamp: number;
+  status?: number;
+  apiCode?: number;
+  apiError?: string;
+  apiErrorDescription?: string;
+  calendarId?: string;
+  windowStart?: string;
+  windowEnd?: string;
+  tokenFingerprint?: string;
+  tokenSavedAt?: number;
+  refreshTokenExpiresAt?: number;
+}
+
 export interface CalendarSource {
   id: string;                    // UUID generated on creation
   name: string;
-  type: 'google' | 'caldav' | 'ics';
+  type: 'google' | 'caldav' | 'ics' | 'feishu';
   color: string;                 // Hex color
   enabled: boolean;
   google?: {
@@ -64,6 +105,23 @@ export interface CalendarSource {
     fallbackTimeoutMs?: number;
   };
   ics?: { feedUrl: string; };
+  feishu?: {
+    appId: string;
+    appSecret: string;
+    accessToken?: string;
+    refreshToken?: string;
+    tokenExpiry?: number;
+    refreshTokenExpiry?: number;
+    refreshTokenFingerprint?: string;
+    refreshTokenSavedAt?: number;
+    lastRefreshAttemptAt?: number;
+    lastRefreshTokenFingerprintUsed?: string;
+    firstAuthorizedAt?: number;
+    selectedCalendars?: FeishuSelectedCalendar[];
+    calendarId?: string;
+    calendarName?: string;
+    lastSyncError?: FeishuSyncDiagnostic;
+  };
 }
 
 export type SyncState =
@@ -139,6 +197,23 @@ export interface UniCalendarData {
 }
 
 export function formatGoogleTokenFingerprint(token: string | undefined): string | undefined {
+  if (!token) {
+    return undefined;
+  }
+
+  const normalized = token.trim();
+  if (!normalized) {
+    return undefined;
+  }
+
+  if (normalized.length <= 10) {
+    return `${normalized.slice(0, 3)}…${normalized.slice(-2)}`;
+  }
+
+  return `${normalized.slice(0, 6)}…${normalized.slice(-4)}`;
+}
+
+export function formatFeishuTokenFingerprint(token: string | undefined): string | undefined {
   if (!token) {
     return undefined;
   }

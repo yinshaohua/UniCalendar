@@ -6,6 +6,11 @@ import {
   formatGoogleErrorTime,
   formatGoogleDiagnosticLines,
   formatGoogleDiagnosticText,
+  formatFeishuSelectionSummary,
+  formatFeishuErrorPhase,
+  formatFeishuErrorSummary,
+  formatFeishuDiagnosticLines,
+  formatFeishuDiagnosticText,
 } from '../../src/settings/SettingsTab';
 import type { CalendarSource } from '../../src/models/types';
 import { formatGoogleTokenFingerprint } from '../../src/models/types';
@@ -20,6 +25,21 @@ function makeGoogleSource(overrides: Partial<NonNullable<CalendarSource['google'
     google: {
       clientId: 'cid',
       clientSecret: 'secret',
+      ...overrides,
+    },
+  };
+}
+
+function makeFeishuSource(overrides: Partial<NonNullable<CalendarSource['feishu']>> = {}): CalendarSource {
+  return {
+    id: 'f1',
+    name: 'Feishu',
+    type: 'feishu',
+    color: '#74C0FC',
+    enabled: true,
+    feishu: {
+      appId: 'cli_xxx',
+      appSecret: 'secret',
       ...overrides,
     },
   };
@@ -144,5 +164,97 @@ describe('SettingsTab Google formatters', () => {
     ].join('\n'));
 
     formatTimeSpy.mockRestore();
+  });
+});
+
+describe('SettingsTab Feishu formatters', () => {
+  it('summarizes selected calendars', () => {
+    const source = makeFeishuSource({
+      selectedCalendars: [
+        { id: 'cal_1', name: '主日历', type: 'primary', role: 'owner' },
+        { id: 'cal_2', name: '团队日历', type: 'shared', role: 'writer' },
+      ],
+    });
+
+    expect(formatFeishuSelectionSummary(source)).toBe('已选日历（2）: 主日历, 团队日历');
+  });
+
+  it('falls back to single calendar name when selectedCalendars is absent', () => {
+    const source = makeFeishuSource({
+      calendarId: 'cal_1',
+      calendarName: '主日历',
+    });
+
+    expect(formatFeishuSelectionSummary(source)).toBe('已选日历: 主日历');
+  });
+
+  it('formats operation phase labels', () => {
+    expect(formatFeishuErrorPhase('exchange')).toBe('授权换取令牌');
+    expect(formatFeishuErrorPhase('refresh')).toBe('刷新访问令牌');
+    expect(formatFeishuErrorPhase('calendar-list')).toBe('拉取飞书日历列表');
+    expect(formatFeishuErrorPhase('instance-view')).toBe('拉取飞书日程实例');
+  });
+
+  it('formats last sync error summary', () => {
+    const source = makeFeishuSource({
+      lastSyncError: {
+        message: '飞书访问令牌已失效，请重新授权。',
+        kind: 'invalid_grant',
+        operation: 'refresh',
+        timestamp: Date.UTC(2026, 4, 20, 8, 30, 0),
+      },
+    });
+
+    expect(formatFeishuErrorSummary(source)).toContain('上次失败: 飞书访问令牌已失效，请重新授权。');
+    expect(formatFeishuErrorSummary(source)).toContain('阶段：刷新访问令牌');
+  });
+
+  it('formats diagnostic lines with structured fields', () => {
+    const source = makeFeishuSource({
+      refreshTokenFingerprint: 'eyJhbG…1234',
+      lastSyncError: {
+        message: '飞书接口限流。',
+        kind: 'rate_limited',
+        operation: 'instance-view',
+        timestamp: Date.UTC(2026, 4, 20, 8, 30, 0),
+        status: 429,
+        apiCode: 99991663,
+        apiError: 'rate_limited',
+        apiErrorDescription: 'too many requests',
+        calendarId: 'cal_1',
+        windowStart: '2026-05-20T00:00:00.000Z',
+        windowEnd: '2026-05-27T00:00:00.000Z',
+        tokenSavedAt: Date.UTC(2026, 4, 19, 10, 0, 0),
+        refreshTokenExpiresAt: Date.UTC(2026, 5, 19, 10, 0, 0),
+      },
+    });
+
+    const lines = formatFeishuDiagnosticLines(source);
+
+    expect(lines[0]).toBe('UniCalendar Feishu 诊断');
+    expect(lines).toContain('- source: Feishu');
+    expect(lines).toContain('- phase: 拉取飞书日程实例');
+    expect(lines).toContain('- status: 429');
+    expect(lines).toContain('- apiCode: 99991663');
+    expect(lines).toContain('- apiError: rate_limited');
+    expect(lines).toContain('- calendarId: cal_1');
+    expect(lines).toContain('- windowStart: 2026-05-20T00:00:00.000Z');
+    expect(lines).toContain('- tokenFingerprint: eyJhbG…1234');
+  });
+
+  it('formats diagnostic text for clipboard/export scenarios', () => {
+    const source = makeFeishuSource({
+      lastSyncError: {
+        message: '没有权限访问该飞书日历。',
+        kind: 'no_permission',
+        operation: 'calendar-list',
+        timestamp: Date.UTC(2026, 4, 20, 8, 30, 0),
+      },
+    });
+
+    const text = formatFeishuDiagnosticText(source);
+    expect(text).toContain('UniCalendar Feishu 诊断');
+    expect(text).toContain('- operation: calendar-list');
+    expect(text).toContain('- message: 没有权限访问该飞书日历。');
   });
 });
