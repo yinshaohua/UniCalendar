@@ -47,6 +47,8 @@ Open **Settings → UniCalendar** to configure calendar sources.
 2. Enter the server URL, username, and password
 3. Select **Discover calendars** to list available calendars
 
+For Feishu/Lark CalDAV performance notes and troubleshooting, see [Feishu CalDAV diagnostics](docs/feishu-caldav-diagnostics.md).
+
 ### Add an ICS feed
 
 1. Select **Add source → ICS feed**

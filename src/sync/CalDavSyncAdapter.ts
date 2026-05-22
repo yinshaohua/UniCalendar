@@ -13,7 +13,7 @@ export interface CalDavSyncOptions {
 }
 
 export class CalDavSyncAdapter {
-  private static readonly FEISHU_MULTIGET_TIMEOUT_MS = 60000;
+  private static readonly FEISHU_MULTIGET_TIMEOUT_MS = 180000;
   private static readonly GENERIC_MULTIGET_TIMEOUT_MS = 2000;
   private static readonly GENERIC_FALLBACK_TIMEOUT_MS = 10000;
   private static readonly FALLBACK_GET_CONCURRENCY = 6;
@@ -308,8 +308,8 @@ export class CalDavSyncAdapter {
           !calendarCacheEntry.resourceFingerprint &&
           calendarCacheEntry.cachedEvents.length > 0
         ) {
-          console.debug(
-            `[UniCalendar] CalDAV href-only legacy cache bootstrap: path=${calendarPath}, hrefs=${eventResources.length}, events=${calendarCacheEntry.cachedEvents.length}`,
+          console.warn(
+            `[UniCalendar] CalDAV href-only legacy cache bootstrap: path=${calendarPath}, hrefs=${eventResources.length}, events=${calendarCacheEntry.cachedEvents.length}, skippingLargeBodyDownload=true`,
           );
           this.storeCalendarResultCache(options, sourceId, calendarPath, calendarCacheEntry.cachedEvents, {
             resourceFingerprint,

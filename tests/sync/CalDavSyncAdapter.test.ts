@@ -72,6 +72,7 @@ describe('CalDavSyncAdapter', () => {
   let consoleWarnSpy: MockInstance;
 
   afterEach(() => {
+    vi.useRealTimers();
     mockedRequestUrl.mockReset();
     consoleWarnSpy?.mockRestore();
   });
@@ -881,6 +882,69 @@ describe('CalDavSyncAdapter', () => {
     expect(consoleWarnSpy).not.toHaveBeenCalledWith(expect.stringContaining('switchingToGet=true'));
   }, 15000);
 
+  it('waits long enough for large Feishu calendar-multiget responses', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+    const href = '/calendar/primary/event.ics';
+
+    vi.useFakeTimers();
+    mockedRequestUrl
+      .mockResolvedValueOnce({
+        text: `<?xml version="1.0" encoding="UTF-8"?>
+          <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+            <d:response>
+              <d:href>${href}</d:href>
+              <d:propstat>
+                <d:prop><d:getetag>slow-etag</d:getetag></d:prop>
+                <d:status>HTTP/1.1 200 OK</d:status>
+              </d:propstat>
+              <d:propstat>
+                <d:prop><c:calendar-data /></d:prop>
+                <d:status>HTTP/1.1 404 Not Found</d:status>
+              </d:propstat>
+            </d:response>
+          </d:multistatus>`,
+        status: 207,
+        json: {},
+        headers: {},
+        arrayBuffer: new ArrayBuffer(0),
+      } as Awaited<ReturnType<typeof requestUrl>>)
+      .mockImplementationOnce(() => new Promise(resolve => {
+        setTimeout(() => resolve({
+          text: `<?xml version="1.0" encoding="UTF-8"?>
+            <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+              <d:response>
+                <d:href>${href}</d:href>
+                <d:propstat>
+                  <d:prop>
+                    <d:getetag>slow-etag</d:getetag>
+                    <c:calendar-data>BEGIN:VCALENDAR\r\nVERSION:2.0\r\nBEGIN:VEVENT\r\nUID:slow-event\r\nDTSTART:20260408T100000Z\r\nDTEND:20260408T110000Z\r\nSUMMARY:Slow Feishu Event\r\nEND:VEVENT\r\nEND:VCALENDAR</c:calendar-data>
+                  </d:prop>
+                  <d:status>HTTP/1.1 200 OK</d:status>
+                </d:propstat>
+              </d:response>
+            </d:multistatus>`,
+          status: 207,
+          json: {},
+          headers: {},
+          arrayBuffer: new ArrayBuffer(0),
+        } as Awaited<ReturnType<typeof requestUrl>>), 70000);
+      }) as ReturnType<typeof requestUrl>);
+
+    const syncPromise = adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+    );
+
+    await vi.advanceTimersByTimeAsync(70000);
+    const events = await syncPromise;
+
+    expect(events.map(event => event.title)).toEqual(['Slow Feishu Event']);
+    expect(mockedRequestUrl).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
   it('fetches ICS bodies in parallel via GET fallback for non-Feishu CalDAV when calendar-multiget yields no payloads', async () => {
     const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
     const source = makeCalDavSource({
@@ -1058,7 +1122,7 @@ describe('CalDavSyncAdapter', () => {
     expect(onCacheChange).not.toHaveBeenCalled();
   });
 
-  it('bootstraps Feishu fingerprint from legacy cached events without downloading href bodies', async () => {
+  it('bootstraps Feishu legacy cached events without downloading huge href bodies', async () => {
     const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
     const source = makeCalDavSource();
     const cachedEvent = {
