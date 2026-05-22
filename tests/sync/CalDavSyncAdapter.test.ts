@@ -655,6 +655,7 @@ describe('CalDavSyncAdapter', () => {
             ],
             lastSuccessfulSyncAt: Date.now() - 1000,
             resourcesByHref: {},
+            resourceFingerprint: 'https://caldav.feishu.cn/calendar/primary/event-1.ics\u0000old-etag',
           },
         },
       },
@@ -1055,6 +1056,69 @@ describe('CalDavSyncAdapter', () => {
     expect(events).toEqual([cachedEvent]);
     expect(mockedRequestUrl).toHaveBeenCalledTimes(1);
     expect(onCacheChange).not.toHaveBeenCalled();
+  });
+
+  it('bootstraps Feishu fingerprint from legacy cached events without downloading href bodies', async () => {
+    const adapter = new CalDavSyncAdapter(new IcsSyncAdapter());
+    const source = makeCalDavSource();
+    const cachedEvent = {
+      id: 'cached-legacy-1',
+      sourceId: source.id,
+      uid: 'cached-legacy-1',
+      title: 'Legacy Cached Event',
+      start: '2026-04-08T10:00:00.000Z',
+      end: '2026-04-08T11:00:00.000Z',
+      allDay: false,
+    };
+    const href = '/calendar/primary/event.ics';
+    const etag = 'bootstrap-etag';
+    const cache: CalDavCache = {
+      bySource: {
+        [source.id]: {
+          '/calendar/primary/': {
+            cachedEvents: [cachedEvent],
+            lastSuccessfulSyncAt: Date.now(),
+            resourcesByHref: {},
+          },
+        },
+      },
+    };
+    const onCacheChange = vi.fn((nextCache: CalDavCache) => {
+      cache.bySource = nextCache.bySource;
+    });
+
+    mockedRequestUrl.mockResolvedValueOnce({
+      text: `<?xml version="1.0" encoding="UTF-8"?>
+        <d:multistatus xmlns:d="DAV:" xmlns:c="urn:ietf:params:xml:ns:caldav">
+          <d:response>
+            <d:href>${href}</d:href>
+            <d:propstat>
+              <d:prop><d:getetag>${etag}</d:getetag></d:prop>
+              <d:status>HTTP/1.1 200 OK</d:status>
+            </d:propstat>
+            <d:propstat>
+              <d:prop><c:calendar-data /></d:prop>
+              <d:status>HTTP/1.1 404 Not Found</d:status>
+            </d:propstat>
+          </d:response>
+        </d:multistatus>`,
+      status: 207,
+      json: {},
+      headers: {},
+      arrayBuffer: new ArrayBuffer(0),
+    } as Awaited<ReturnType<typeof requestUrl>>);
+
+    const events = await adapter.sync(
+      source,
+      new Date('2026-04-01T00:00:00Z'),
+      new Date('2026-04-30T00:00:00Z'),
+      { cache, onCacheChange },
+    );
+
+    expect(events).toEqual([cachedEvent]);
+    expect(mockedRequestUrl).toHaveBeenCalledTimes(1);
+    expect(onCacheChange).toHaveBeenCalledOnce();
+    expect(cache.bySource[source.id]?.['/calendar/primary/']?.resourceFingerprint).toBe(`https://caldav.feishu.cn${href}\u0000${etag}`);
   });
 
   it('stores Feishu full-window fingerprint cache without persisting raw ICS bodies', async () => {

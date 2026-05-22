@@ -7,6 +7,7 @@ import { EventStore } from '../store/EventStore';
 
 export class SyncManager {
   private state: SyncState = { status: 'idle', lastSyncTime: null };
+  private activeSyncPromise: Promise<void> | null = null;
   private onStateChange: (state: SyncState) => void;
   private eventStore: EventStore;
   private settingsProvider?: () => Pick<UniCalendarSettings, 'syncWindowPastMonths' | 'syncWindowFutureMonths'>;
@@ -41,6 +42,20 @@ export class SyncManager {
   }
 
   async syncAll(sources: CalendarSource[]): Promise<void> {
+    if (this.activeSyncPromise) {
+      console.debug('[UniCalendar] Sync already in progress; reusing active sync promise');
+      return this.activeSyncPromise;
+    }
+
+    this.activeSyncPromise = this.syncAllInternal(sources);
+    try {
+      await this.activeSyncPromise;
+    } finally {
+      this.activeSyncPromise = null;
+    }
+  }
+
+  private async syncAllInternal(sources: CalendarSource[]): Promise<void> {
     if (sources.length === 0) {
       return;
     }

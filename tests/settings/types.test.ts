@@ -53,43 +53,6 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.defaultView).toBe('month');
   });
 
-  it('allows source-level CalDAV fallback override', () => {
-    const source: CalendarSource = {
-      id: 'caldav-1',
-      name: 'Feishu',
-      type: 'caldav',
-      color: '#74C0FC',
-      enabled: true,
-      caldav: {
-        serverUrl: 'https://caldav.feishu.cn',
-        username: 'u',
-        password: 'p',
-        fallbackFetchEnabled: true,
-      },
-    };
-
-    expect(source.caldav?.fallbackFetchEnabled).toBe(true);
-  });
-
-  it('allows source-level CalDAV fallback timeout override', () => {
-    const source: CalendarSource = {
-      id: 'caldav-2',
-      name: 'Feishu Slow',
-      type: 'caldav',
-      color: '#74C0FC',
-      enabled: true,
-      caldav: {
-        serverUrl: 'https://caldav.feishu.cn',
-        username: 'u',
-        password: 'p',
-        fallbackFetchEnabled: true,
-        fallbackTimeoutMs: 8000,
-      },
-    };
-
-    expect(source.caldav?.fallbackTimeoutMs).toBe(8000);
-  });
-
   it('has showLunarCalendar defaulting to true', () => {
     expect(DEFAULT_SETTINGS.showLunarCalendar).toBe(true);
   });

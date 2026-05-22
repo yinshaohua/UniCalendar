@@ -101,8 +101,6 @@ export interface CalendarSource {
     calendarPath?: string;
     calendarDisplayName?: string;
     selectedCalendars?: Array<{ path: string; displayName: string }>;
-    fallbackFetchEnabled?: boolean;
-    fallbackTimeoutMs?: number;
   };
   ics?: { feedUrl: string; };
   feishu?: {
@@ -141,8 +139,6 @@ export interface UniCalendarSettings {
   syncInterval: number;          // minutes
   syncWindowPastMonths: number;  // months before now to include during sync
   syncWindowFutureMonths: number; // months after now to include during sync
-  // Deprecated: retained only so existing saved plugin data can be loaded without dropping unknown fields.
-  caldavFallbackFetchEnabled?: boolean;
   defaultView: 'month' | 'week' | 'day';
   monthOverflowMode: 'expand' | 'collapse';
   showLunarCalendar: boolean;    // D-12: show lunar dates, festivals, solar terms in month view
@@ -257,7 +253,6 @@ export const DEFAULT_SETTINGS: UniCalendarSettings = {
   syncInterval: 15,
   syncWindowPastMonths: 1,
   syncWindowFutureMonths: 3,
-  // Deprecated: CalDAV compatibility behavior is now selected automatically by server host.
   defaultView: 'month',
   monthOverflowMode: 'expand',
   showLunarCalendar: true,

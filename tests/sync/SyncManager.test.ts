@@ -150,6 +150,34 @@ describe('SyncManager', () => {
     expect(states.at(-1)?.status).toBe('error');
   });
 
+  it('reuses the active sync promise when syncAll is called concurrently', async () => {
+    const manager = new SyncManager(() => {}, new EventStore());
+    const source = makeSource({ type: 'caldav', caldav: {
+      serverUrl: 'https://caldav.feishu.cn',
+      username: 'user@example.com',
+      password: 'secret',
+      calendarPath: '/calendar/primary/',
+    } });
+    const caldavAdapter = (manager as unknown as { caldavAdapter: { sync: (source: CalendarSource) => Promise<unknown[]> } }).caldavAdapter;
+    let releaseSync!: () => void;
+    const syncSpy = vi.spyOn(caldavAdapter, 'sync').mockImplementationOnce(async () => {
+      await new Promise<void>((resolve) => {
+        releaseSync = resolve;
+      });
+      return [];
+    });
+
+    const firstSync = manager.syncAll([source]);
+    const secondSync = manager.syncAll([source]);
+
+    await Promise.resolve();
+    expect(syncSpy).toHaveBeenCalledOnce();
+
+    releaseSync();
+    await Promise.all([firstSync, secondSync]);
+    expect(manager.getState().status).toBe('idle');
+  });
+
   it('passes CalDAV cache hooks without user-facing fallback options', async () => {
     const cache = { bySource: {} };
     const onCacheChange = vi.fn();

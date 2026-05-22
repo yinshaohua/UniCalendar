@@ -302,6 +302,22 @@ export class CalDavSyncAdapter {
           );
           return calendarCacheEntry.cachedEvents;
         }
+        if (
+          cacheOptions?.useFingerprintCache &&
+          calendarCacheEntry &&
+          !calendarCacheEntry.resourceFingerprint &&
+          calendarCacheEntry.cachedEvents.length > 0
+        ) {
+          console.debug(
+            `[UniCalendar] CalDAV href-only legacy cache bootstrap: path=${calendarPath}, hrefs=${eventResources.length}, events=${calendarCacheEntry.cachedEvents.length}`,
+          );
+          this.storeCalendarResultCache(options, sourceId, calendarPath, calendarCacheEntry.cachedEvents, {
+            resourceFingerprint,
+            cacheWindowStart: rangeStart.toISOString(),
+            cacheWindowEnd: rangeEnd.toISOString(),
+          });
+          return calendarCacheEntry.cachedEvents;
+        }
         const isFeishu = this.isFeishuServer(baseUrl);
         if (isFeishu) {
           console.debug(`[UniCalendar] Feishu CalDAV REPORT returned ${eventResources.length} event href(s) without calendar-data from ${calendarPath}; fetching event bodies via long calendar-multiget`);
