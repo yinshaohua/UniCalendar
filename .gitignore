@@ -62,3 +62,4 @@ vendor/
 coverage/
 .cache/
 tmp/
+.tsconfig.external-node-modules.json

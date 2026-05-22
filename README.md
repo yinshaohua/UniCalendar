@@ -91,9 +91,15 @@ UniCalendar operates entirely locally. Calendar credentials are stored in your v
 
 ## Development
 
-```bash
-# Install dependencies
-npm install
+```powershell
+# Optional: enable external dependencies for this shell session.
+# This keeps node_modules out of OneDrive-synced project directories.
+. .\setenv.ps1
+
+# Install dependencies.
+# With setenv.ps1 loaded, this installs to the external directory.
+# Without setenv.ps1, the same command installs to local ./node_modules.
+npm run deps:install
 
 # Watch mode (auto-recompile on save)
 npm run dev
@@ -107,6 +113,14 @@ npm test
 # Lint
 npm run lint
 ```
+
+Use `npm run deps:install` in both modes. By default, it behaves like `npm install` and creates local `./node_modules`. To opt in to external dependencies, dot-source `setenv.ps1` in the current PowerShell session before running npm scripts:
+
+```powershell
+. .\setenv.ps1
+```
+
+The script sets `EXTERNAL_NODE_MODULES` to `C:/local_data/<project-folder>/node_modules` and updates `NODE_PATH`/`PATH` for the session. With that variable set, `npm run deps:install` installs dependencies into the external directory, and build/test/lint resolve tools from there. Without that variable, scripts fall back to the project directory's `node_modules`. Do not create a symlink or junction back to `node_modules`. See [External node_modules guide](EXTERNAL-NODE-MODULES-GUIDE.md) for the reusable setup details.
 
 Copy `main.js`, `manifest.json`, and `styles.css` to `<Vault>/.obsidian/plugins/uni-calendar/` and reload Obsidian to test locally.
 

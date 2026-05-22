@@ -1,6 +1,12 @@
 {
 	"compilerOptions": {
-		"baseUrl": "src",
+		"baseUrl": ".",
+		"paths": {
+			"*": [
+				"src/*",
+				"node_modules/*"
+			]
+		},
 		"inlineSourceMap": true,
 		"inlineSources": true,
 		"module": "ESNext",

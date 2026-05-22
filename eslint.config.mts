@@ -1,7 +1,14 @@
-import tseslint from 'typescript-eslint';
-import obsidianmd from "eslint-plugin-obsidianmd";
-import globals from "globals";
-import { globalIgnores } from "eslint/config";
+import { createRequire } from 'node:module';
+import { pathToFileURL } from 'node:url';
+import { EXTERNAL_MODE, EXTERNAL_NODE_MODULES } from './scripts/with-external-node-modules.mjs';
+
+const require = EXTERNAL_MODE
+	? createRequire(`${EXTERNAL_NODE_MODULES}/../package.json`)
+	: createRequire(import.meta.url);
+const tseslint = require('typescript-eslint');
+const globals = require('globals');
+const { globalIgnores } = require('eslint/config');
+const obsidianmd = (await import(pathToFileURL(require.resolve('eslint-plugin-obsidianmd')).href)).default;
 
 export default tseslint.config(
 	{
@@ -10,13 +17,7 @@ export default tseslint.config(
 				...globals.browser,
 			},
 			parserOptions: {
-				projectService: {
-					allowDefaultProject: [
-						'eslint.config.mts',
-						'manifest.json',
-						'vitest.config.ts'
-					]
-				},
+				project: EXTERNAL_MODE ? './.tsconfig.external-node-modules.json' : './tsconfig.json',
 				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.json']
 			},
@@ -35,7 +36,9 @@ export default tseslint.config(
 		"esbuild.config.mjs",
 		"eslint.config.js",
 		"eslint.config.mts",
+		"vitest.config.ts",
 		"version-bump.mjs",
+		"scripts/**",
 		"versions.json",
 		"main.js",
 		"**/*.md",
