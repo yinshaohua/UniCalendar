@@ -63,3 +63,17 @@ coverage/
 .cache/
 tmp/
 .tsconfig.external-node-modules.json
+
+# ── GSD baseline (auto-generated) ──
+nul
+nul.*
+con
+con.*
+prn
+prn.*
+aux
+aux.*
+com[1-9]
+com[1-9].*
+lpt[1-9]
+lpt[1-9].*
