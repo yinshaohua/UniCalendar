@@ -38,8 +38,21 @@ Open **Settings → UniCalendar** to configure calendar sources.
 
 1. Select **Add source → Google Calendar**
 2. Enter your Google OAuth client ID and client secret (see [Google Cloud Console](https://console.cloud.google.com/))
-3. Select **Authorize** — a browser window opens for the OAuth flow
-4. After authorization, select which calendars to include
+3. Choose a **Google proxy mode** if your network needs help reaching Google OAuth and Calendar API endpoints
+4. Select **Authorize** — a browser window opens for the OAuth flow
+5. After authorization, select which calendars to include
+
+#### Google proxy modes
+
+UniCalendar supports three Google proxy modes:
+
+- **System proxy** — uses Obsidian/Electron networking. This is the default and respects the proxy behavior provided by the app/runtime.
+- **No proxy** — sends Google requests directly from the desktop plugin process. Use this when a system proxy interferes with Google requests.
+- **Custom proxy** — connects through a local or LAN HTTP proxy with `host` and `port`, for example `127.0.0.1` and `7897`.
+
+Custom proxy mode is for standard HTTP CONNECT proxies. UniCalendar opens a CONNECT tunnel to Google, upgrades it to TLS, and then sends the original Google OAuth token and Calendar API requests through that tunnel. It is not a forwarding endpoint and does not use a `target=` query parameter.
+
+The legacy **Google proxy address** field is kept only for older saved data migration. New saves store `proxyMode`, `proxyHost`, and `proxyPort`, and clear the old `proxyUrl` value.
 
 ### Add a CalDAV source
 
@@ -93,38 +106,75 @@ UniCalendar operates entirely locally. Calendar credentials are stored in your v
 
 ## Development
 
+UniCalendar is an Obsidian community plugin. The TypeScript entry point is `main.ts`, bundled by esbuild into root-level `main.js`, which Obsidian loads together with `manifest.json` and optional `styles.css`.
+
+### Project structure
+
+```text
+src/
+  main.ts                 # Plugin lifecycle, command/view registration
+  lunar/                  # Lunar calendar, solar terms, and holiday services
+  models/                 # Shared domain types
+  settings/               # Settings tab and configuration UI
+  store/                  # Event storage, filtering, and deduplication
+  sync/                   # Google, CalDAV, and ICS sync adapters
+  views/                  # Calendar view and event detail modal
+tests/                    # Vitest test suites and Obsidian mocks
+```
+
+Keep `src/main.ts` small and place feature logic in focused modules under `src/`.
+
+### Environment
+
+This project can keep `node_modules` outside the repository directory, which is useful for OneDrive-synced workspaces. To opt in, dot-source `setenv.ps1` before running npm commands in the current PowerShell session:
+
 ```powershell
-# Optional: enable external dependencies for this shell session.
-# This keeps node_modules out of OneDrive-synced project directories.
+. .\setenv.ps1
+```
+
+The script sets `EXTERNAL_NODE_MODULES` to `C:/local_data/<project-folder>/node_modules` and updates `NODE_PATH`/`PATH` for that shell session. With it loaded, npm scripts resolve tools from the external directory. Without it, scripts fall back to local `./node_modules`. Do not create a symlink or junction back to `node_modules`. See [External node_modules guide](EXTERNAL-NODE-MODULES-GUIDE.md) for details.
+
+### Common commands
+
+```powershell
+# Optional but recommended for this workspace.
 . .\setenv.ps1
 
 # Install dependencies.
-# With setenv.ps1 loaded, this installs to the external directory.
-# Without setenv.ps1, the same command installs to local ./node_modules.
 npm run deps:install
 
-# Watch mode (auto-recompile on save)
+# Watch mode, auto-recompile on save.
 npm run dev
 
-# Production build
+# Production build.
 npm run build
 
-# Run tests
+# Run tests.
 npm test
 
-# Lint
+# Lint.
 npm run lint
 ```
 
-Use `npm run deps:install` in both modes. By default, it behaves like `npm install` and creates local `./node_modules`. To opt in to external dependencies, dot-source `setenv.ps1` in the current PowerShell session before running npm scripts:
+### Manual testing
 
-```powershell
-. .\setenv.ps1
-```
+Copy `main.js`, `manifest.json`, and `styles.css` to `<Vault>/.obsidian/plugins/uni-calendar/`, then reload Obsidian and enable the plugin in **Settings → Community plugins**.
 
-The script sets `EXTERNAL_NODE_MODULES` to `C:/local_data/<project-folder>/node_modules` and updates `NODE_PATH`/`PATH` for the session. With that variable set, `npm run deps:install` installs dependencies into the external directory, and build/test/lint resolve tools from there. Without that variable, scripts fall back to the project directory's `node_modules`. Do not create a symlink or junction back to `node_modules`. See [External node_modules guide](EXTERNAL-NODE-MODULES-GUIDE.md) for the reusable setup details.
+### Manifest and releases
 
-Copy `main.js`, `manifest.json`, and `styles.css` to `<Vault>/.obsidian/plugins/uni-calendar/` and reload Obsidian to test locally.
+- Keep `manifest.json` fields accurate, including `id`, `name`, `version`, `minAppVersion`, `description`, and `isDesktopOnly`.
+- Treat `manifest.json` `id` as stable after release.
+- When bumping a release version, update both `manifest.json` and `versions.json`.
+- GitHub release tags should exactly match the manifest version, without a leading `v`.
+- Attach `manifest.json`, `main.js`, and `styles.css` as individual release assets.
+
+### Plugin guidelines
+
+- Default to local/offline operation and document any network access clearly.
+- Do not add hidden telemetry, ads, remote-code execution, or custom auto-update behavior.
+- Use stable command IDs for user-facing commands.
+- Keep mobile compatibility in mind because `isDesktopOnly` is `false`.
+- Register events, DOM listeners, and intervals through Obsidian cleanup helpers so unload is safe.
 
 ## License
 

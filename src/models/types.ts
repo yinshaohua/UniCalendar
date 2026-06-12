@@ -88,6 +88,10 @@ export interface CalendarSource {
     calendarId?: string;        // Selected calendar ID from discovery (legacy single-select)
     calendarName?: string;      // Display name of selected calendar (legacy single-select)
     selectedCalendars?: Array<{ id: string; name: string }>;
+    proxyMode?: 'none' | 'system' | 'custom'; // Google request proxy mode; defaults to system for legacy sources
+    proxyHost?: string;          // Optional custom HTTP proxy host for Google OAuth and Calendar API requests
+    proxyPort?: number;          // Optional custom HTTP proxy port for Google OAuth and Calendar API requests
+    proxyUrl?: string;           // Legacy forwarding proxy endpoint retained for saved-data compatibility
     refreshTokenFingerprint?: string;
     refreshTokenSavedAt?: number;
     lastRefreshAttemptAt?: number;

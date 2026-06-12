@@ -1,5 +1,5 @@
-import { requestUrl } from 'obsidian';
 import { CalendarSource, formatGoogleTokenFingerprint } from '../models/types';
+import { getGoogleProxySettings, requestGoogleUrl, type GoogleProxySettings } from './GoogleProxyRequest';
 
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
@@ -161,6 +161,7 @@ export class GoogleAuthHelper {
     clientSecret: string,
     redirectUri: string,
     codeVerifier: string,
+    proxySettings?: GoogleProxySettings,
   ): Promise<{ accessToken: string; refreshToken: string; tokenExpiry: number }> {
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
@@ -171,7 +172,7 @@ export class GoogleAuthHelper {
       code_verifier: codeVerifier,
     }).toString();
 
-    const response = await this.performTokenRequest('exchange', body);
+    const response = await this.performTokenRequest('exchange', body, undefined, proxySettings);
     if (!response.access_token || !response.refresh_token || typeof response.expires_in !== 'number') {
       throw this.createUnexpectedResponseError(
         'exchange',
@@ -191,6 +192,7 @@ export class GoogleAuthHelper {
     refreshToken: string,
     clientId: string,
     clientSecret: string,
+    proxySettings?: GoogleProxySettings,
   ): Promise<{ accessToken: string; tokenExpiry: number }> {
     const body = new URLSearchParams({
       grant_type: 'refresh_token',
@@ -199,7 +201,7 @@ export class GoogleAuthHelper {
       client_secret: clientSecret,
     }).toString();
 
-    const response = await this.performTokenRequest('refresh', body, { retryOnce: true });
+    const response = await this.performTokenRequest('refresh', body, { retryOnce: true }, proxySettings);
     if (!response.access_token || typeof response.expires_in !== 'number') {
       throw this.createUnexpectedResponseError(
         'refresh',
@@ -234,6 +236,7 @@ export class GoogleAuthHelper {
       google.refreshToken,
       google.clientId,
       google.clientSecret,
+      getGoogleProxySettings(google),
     );
     google.accessToken = result.accessToken;
     google.tokenExpiry = result.tokenExpiry;
@@ -244,29 +247,38 @@ export class GoogleAuthHelper {
     operation: 'exchange' | 'refresh',
     body: string,
     options?: { retryOnce?: boolean },
+    proxySettings?: GoogleProxySettings,
   ): Promise<GoogleTokenResponse> {
     try {
-      return await this.performTokenRequestOnce(operation, body);
+      return await this.performTokenRequestOnce(operation, body, proxySettings);
     } catch (error) {
       if (options?.retryOnce && error instanceof GoogleTokenError && error.isRetryable()) {
         console.warn('[UniCalendar] Retrying Google token request after retryable failure', error.toLogObject());
         await this.delay(this.retryDelayMs);
-        return this.performTokenRequestOnce(operation, body);
+        return this.performTokenRequestOnce(operation, body, proxySettings);
       }
       throw error;
     }
   }
 
-  private async performTokenRequestOnce(operation: 'exchange' | 'refresh', body: string): Promise<GoogleTokenResponse> {
+  private async performTokenRequestOnce(
+    operation: 'exchange' | 'refresh',
+    body: string,
+    proxySettings?: GoogleProxySettings,
+  ): Promise<GoogleTokenResponse> {
     let response;
     try {
       response = await this.withTokenRequestTimeout(
-        requestUrl({
-          url: TOKEN_ENDPOINT,
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body,
-        }),
+        requestGoogleUrl(
+          {
+            url: TOKEN_ENDPOINT,
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body,
+            timeout: this.tokenRequestTimeoutMs,
+          },
+          proxySettings,
+        ),
         operation,
       );
     } catch (cause) {

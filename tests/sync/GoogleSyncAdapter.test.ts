@@ -71,7 +71,18 @@ describe('GoogleSyncAdapter', () => {
       expect(calendars[1]!.id).toBe('work@group.v.calendar.google.com');
 
       const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string; headers: Record<string, string> };
-      expect(call.url).toContain('googleapis.com/calendar/v3/users/me/calendarList');
+      expect(call.url).toBe('https://www.googleapis.com/calendar/v3/users/me/calendarList');
+      expect(call.headers['Authorization']).toBe('Bearer my-token');
+    });
+
+    it('routes calendar discovery through system proxy mode while preserving headers', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ items: [] }, 200));
+
+      await adapter.discoverCalendars('my-token', { mode: 'system' });
+
+      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string; headers: Record<string, string>; method: string };
+      expect(call.url).toBe('https://www.googleapis.com/calendar/v3/users/me/calendarList');
+      expect(call.method).toBe('GET');
       expect(call.headers['Authorization']).toBe('Bearer my-token');
     });
   });
@@ -104,6 +115,36 @@ describe('GoogleSyncAdapter', () => {
       expect(events[0]!.uid).toBe('ical-uid-1');
       expect(events[0]!.sourceId).toBe('gsrc-1');
       expect(events[0]!.location).toBe('Room A');
+
+      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string; headers: Record<string, string> };
+      expect(call.url).toContain('https://www.googleapis.com/calendar/v3/calendars/primary/events?');
+      expect(call.headers['Authorization']).toBe('Bearer valid-token');
+    });
+
+    it('routes events requests through system proxy mode while preserving headers', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ items: [] }, 200));
+
+      await adapter.sync(
+        makeGoogleSource({
+          google: {
+            clientId: 'cid',
+            clientSecret: 'cs',
+            accessToken: 'valid-token',
+            refreshToken: 'refresh-token',
+            tokenExpiry: Date.now() + 60 * 60 * 1000,
+            calendarId: 'primary',
+            proxyMode: 'system',
+          },
+        }),
+        new Date('2026-04-01T00:00:00Z'),
+        new Date('2026-04-30T23:59:59Z'),
+      );
+
+      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string; headers: Record<string, string>; method: string };
+      expect(call.url).toContain('https://www.googleapis.com/calendar/v3/calendars/primary/events?');
+      expect(call.url).toContain('singleEvents=true');
+      expect(call.method).toBe('GET');
+      expect(call.headers['Authorization']).toBe('Bearer valid-token');
     });
 
     it('wraps Google events API 401 as reauth guidance', async () => {

@@ -111,6 +111,41 @@ describe('GoogleSyncDiagnostic shape', () => {
   });
 });
 
+describe('Google source shape', () => {
+  it('keeps proxy configuration optional for legacy saved sources', () => {
+    const source: CalendarSource = {
+      id: 'google-legacy',
+      name: 'Google',
+      type: 'google',
+      color: '#74C0FC',
+      enabled: true,
+      google: {
+        clientId: 'cid',
+        clientSecret: 'secret',
+      },
+    };
+
+    expect(source.google?.proxyUrl).toBeUndefined();
+  });
+
+  it('supports a persisted Google proxy address', () => {
+    const source: CalendarSource = {
+      id: 'google-proxy',
+      name: 'Google via proxy',
+      type: 'google',
+      color: '#74C0FC',
+      enabled: true,
+      google: {
+        clientId: 'cid',
+        clientSecret: 'secret',
+        proxyUrl: 'https://proxy.example.com/google',
+      },
+    };
+
+    expect(source.google?.proxyUrl).toBe('https://proxy.example.com/google');
+  });
+});
+
 describe('Feishu source shape', () => {
   it('supports persisted Feishu auth and calendar selection fields on a source', () => {
     const source: CalendarSource = {

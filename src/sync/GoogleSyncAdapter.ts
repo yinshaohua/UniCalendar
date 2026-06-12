@@ -1,6 +1,7 @@
-import { requestUrl } from 'obsidian';
+import type { RequestUrlResponse } from 'obsidian';
 import { CalendarEvent, CalendarSource, GoogleSyncDiagnostic, formatGoogleTokenFingerprint } from '../models/types';
 import { GoogleAuthHelper, GoogleTokenError } from './GoogleAuthHelper';
+import { getGoogleProxySettings, requestGoogleUrl, type GoogleProxySettings } from './GoogleProxyRequest';
 
 const CALENDAR_LIST_URL = 'https://www.googleapis.com/calendar/v3/users/me/calendarList';
 const CALENDAR_EVENTS_BASE = 'https://www.googleapis.com/calendar/v3/calendars';
@@ -53,15 +54,19 @@ export class GoogleSyncAdapter {
     this.sourceSyncTimeoutMs = options.sourceSyncTimeoutMs ?? GOOGLE_SOURCE_SYNC_TIMEOUT_MS;
   }
 
-  async discoverCalendars(accessToken: string): Promise<GoogleCalendarEntry[]> {
-    let response: Awaited<ReturnType<typeof requestUrl>>;
+  async discoverCalendars(accessToken: string, proxySettings?: GoogleProxySettings): Promise<GoogleCalendarEntry[]> {
+    let response: RequestUrlResponse;
     try {
       response = await this.withTimeout(
-        requestUrl({
-          url: CALENDAR_LIST_URL,
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        }),
+        requestGoogleUrl(
+          {
+            url: CALENDAR_LIST_URL,
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+            timeout: this.discoveryRequestTimeoutMs,
+          },
+          proxySettings,
+        ),
         this.discoveryRequestTimeoutMs,
         'discovery',
       );
@@ -134,7 +139,15 @@ export class GoogleSyncAdapter {
     for (const calId of calendarIds) {
       const calendarStartedAt = performance.now();
       console.debug(`[UniCalendar] Google calendar sync started: source=${source.name}, calendarId=${calId}`);
-      const events = await this.fetchEvents(calId, accessToken, source.id, source.name, rangeStart, rangeEnd);
+      const events = await this.fetchEvents(
+        calId,
+        accessToken,
+        source.id,
+        source.name,
+        rangeStart,
+        rangeEnd,
+        getGoogleProxySettings(source.google),
+      );
       allEvents.push(...events);
       console.debug(
         `[UniCalendar] Google calendar sync finished: source=${source.name}, calendarId=${calId}, events=${events.length}, durationMs=${Math.round(performance.now() - calendarStartedAt)}`,
@@ -151,6 +164,7 @@ export class GoogleSyncAdapter {
     sourceName: string,
     rangeStart: Date,
     rangeEnd: Date,
+    proxySettings?: GoogleProxySettings,
   ): Promise<CalendarEvent[]> {
     const allEvents: CalendarEvent[] = [];
     let pageToken: string | undefined;
@@ -171,7 +185,7 @@ export class GoogleSyncAdapter {
       }
 
       const url = `${CALENDAR_EVENTS_BASE}/${encodeURIComponent(calendarId)}/events?${params.toString()}`;
-      const response = await this.requestEventsPage(url, accessToken, sourceName, calendarId, page);
+      const response = await this.requestEventsPage(url, accessToken, sourceName, calendarId, page, proxySettings);
       const json = this.parseEventsResponse(response.json);
       const items = json.items ?? [];
       for (const item of items) {
@@ -194,15 +208,20 @@ export class GoogleSyncAdapter {
     sourceName: string,
     calendarId: string,
     page: number,
-  ): Promise<Awaited<ReturnType<typeof requestUrl>>> {
-    let response: Awaited<ReturnType<typeof requestUrl>>;
+    proxySettings?: GoogleProxySettings,
+  ): Promise<RequestUrlResponse> {
+    let response: RequestUrlResponse;
     try {
       response = await this.withTimeout(
-        requestUrl({
-          url,
-          method: 'GET',
-          headers: { 'Authorization': `Bearer ${accessToken}` },
-        }),
+        requestGoogleUrl(
+          {
+            url,
+            method: 'GET',
+            headers: { 'Authorization': `Bearer ${accessToken}` },
+            timeout: this.eventsRequestTimeoutMs,
+          },
+          proxySettings,
+        ),
         this.eventsRequestTimeoutMs,
       );
     } catch (cause) {

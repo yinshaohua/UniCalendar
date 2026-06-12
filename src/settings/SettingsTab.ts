@@ -5,6 +5,7 @@ import { IcsSyncAdapter } from '../sync/IcsSyncAdapter';
 import { GoogleAuthHelper, GoogleTokenError } from '../sync/GoogleAuthHelper';
 import { GoogleSyncAdapter, GoogleCalendarEntry } from '../sync/GoogleSyncAdapter';
 import { startOAuthServer } from '../sync/OAuthServer';
+import { getGoogleProxySettings, GoogleProxyConfigurationError, normalizeGoogleProxySettings, type GoogleProxyMode, type GoogleProxySettings } from '../sync/GoogleProxyRequest';
 
 /**
  * Minimal plugin interface for SettingsTab consumption.
@@ -14,6 +15,73 @@ interface UniCalendarPlugin extends Plugin {
   settings: UniCalendarSettings;
   saveSettings(): Promise<void>;
   refreshCalendarViews(): void;
+}
+
+export function buildSavedGoogleConfig(
+  source: CalendarSource,
+  clientId: string,
+  clientSecret: string,
+  proxySettings: GoogleProxySettings,
+): NonNullable<CalendarSource['google']> {
+  const normalizedProxySettings = normalizeGoogleProxySettings(proxySettings);
+
+  return {
+    clientId: clientId.trim(),
+    clientSecret: clientSecret.trim(),
+    accessToken: source.google?.accessToken,
+    refreshToken: source.google?.refreshToken,
+    tokenExpiry: source.google?.tokenExpiry,
+    calendarId: source.google?.calendarId,
+    calendarName: source.google?.calendarName,
+    selectedCalendars: source.google?.selectedCalendars,
+    refreshTokenFingerprint: source.google?.refreshTokenFingerprint,
+    refreshTokenSavedAt: source.google?.refreshTokenSavedAt,
+    lastRefreshAttemptAt: source.google?.lastRefreshAttemptAt,
+    lastRefreshTokenFingerprintUsed: source.google?.lastRefreshTokenFingerprintUsed,
+    lastSyncError: source.google?.lastSyncError,
+    proxyMode: normalizedProxySettings.mode,
+    proxyHost: normalizedProxySettings.mode === 'custom' ? normalizedProxySettings.host : undefined,
+    proxyPort: normalizedProxySettings.mode === 'custom' ? normalizedProxySettings.port : undefined,
+    proxyUrl: undefined,
+  };
+}
+
+function validateGoogleProxySettingsForNotice(proxySettings: GoogleProxySettings): GoogleProxySettings | null {
+  try {
+    return normalizeGoogleProxySettings(proxySettings);
+  } catch (error) {
+    if (error instanceof GoogleProxyConfigurationError) {
+      new Notice(error.message);
+      return null;
+    }
+    throw error;
+  }
+}
+
+function getEditableGoogleProxySettings(source: CalendarSource): GoogleProxySettings {
+  const settings = getGoogleProxySettings(source.google);
+  if (settings.mode !== 'custom' || settings.host || settings.port || !source.google?.proxyUrl) {
+    return settings;
+  }
+
+  try {
+    const legacyUrl = new URL(source.google.proxyUrl);
+    return {
+      mode: 'custom',
+      host: legacyUrl.hostname,
+      port: legacyUrl.port ? Number(legacyUrl.port) : legacyUrl.protocol === 'http:' ? 80 : 443,
+    };
+  } catch {
+    return settings;
+  }
+}
+
+function buildEditableGoogleProxySettings(mode: GoogleProxyMode, host: string, port: string): GoogleProxySettings {
+  return {
+    mode,
+    host,
+    port: port.trim() ? Number(port.trim()) : undefined,
+  };
 }
 
 export function formatGoogleSelectionSummary(source: CalendarSource): string | null {
@@ -820,6 +888,9 @@ class EditSourceModal extends Modal {
 
     let clientId = source.google?.clientId ?? '';
     let clientSecret = source.google?.clientSecret ?? '';
+    let googleProxySettings = getEditableGoogleProxySettings(source);
+    let googleProxyHost = googleProxySettings.mode === 'custom' ? googleProxySettings.host ?? '' : '';
+    let googleProxyPort = googleProxySettings.mode === 'custom' && googleProxySettings.port ? String(googleProxySettings.port) : '';
     let serverUrl = source.caldav?.serverUrl ?? '';
     let username = source.caldav?.username ?? '';
     let password = source.caldav?.password ?? '';
@@ -890,6 +961,34 @@ class EditSourceModal extends Modal {
           text.inputEl.type = 'password';
         });
 
+      new Setting(contentEl)
+        .setName('Google 代理模式')
+        .setDesc('不配置代理、使用系统代理，或填写自定义 HTTP 代理主机和端口。')
+        .addDropdown(dropdown => dropdown
+          .addOption('none', '不配置代理')
+          .addOption('system', '使用系统代理')
+          .addOption('custom', '自定义代理')
+          .setValue(googleProxySettings.mode)
+          .onChange(value => {
+            googleProxySettings = { ...googleProxySettings, mode: value as GoogleProxyMode };
+          }));
+
+      new Setting(contentEl)
+        .setName('Google 代理主机')
+        .setDesc('仅在“自定义代理”模式下使用，例如 127.0.0.1。')
+        .addText(text => text
+          .setPlaceholder('127.0.0.1')
+          .setValue(googleProxyHost)
+          .onChange(value => { googleProxyHost = value; }));
+
+      new Setting(contentEl)
+        .setName('Google 代理端口')
+        .setDesc('仅在“自定义代理”模式下使用，例如 7890。')
+        .addText(text => text
+          .setPlaceholder('7890')
+          .setValue(googleProxyPort)
+          .onChange(value => { googleProxyPort = value; }));
+
       const startOAuthFlow = async (): Promise<void> => {
         if (Platform.isMobile) {
           new Notice('Google 授权仅支持桌面端');
@@ -913,8 +1012,14 @@ class EditSourceModal extends Modal {
           window.open(url);
           new Notice('请在浏览器中完成授权…');
 
+          const proxySettings = validateGoogleProxySettingsForNotice(
+            buildEditableGoogleProxySettings(googleProxySettings.mode, googleProxyHost, googleProxyPort),
+          );
+          if (proxySettings === null) {
+            return;
+          }
           const code = await oauthServer.codePromise;
-          const tokens = await authHelper.exchangeCode(code, cid, cs, redirectUri, verifier);
+          const tokens = await authHelper.exchangeCode(code, cid, cs, redirectUri, verifier, proxySettings);
 
           const idx = this.plugin.settings.sources.findIndex(s => s.id === source.id);
           if (idx !== -1 && this.plugin.settings.sources[idx]?.google) {
@@ -956,10 +1061,21 @@ class EditSourceModal extends Modal {
           return;
         }
         try {
+          const proxySettings = validateGoogleProxySettingsForNotice(
+            buildEditableGoogleProxySettings(googleProxySettings.mode, googleProxyHost, googleProxyPort),
+          );
+          if (proxySettings === null) {
+            return;
+          }
           const authHelper = new GoogleAuthHelper();
-          const token = await authHelper.ensureValidToken(source.google);
+          const token = await authHelper.ensureValidToken({
+            ...source.google,
+            proxyMode: proxySettings.mode,
+            proxyHost: proxySettings.mode === 'custom' ? proxySettings.host : undefined,
+            proxyPort: proxySettings.mode === 'custom' ? proxySettings.port : undefined,
+          });
           const adapter = new GoogleSyncAdapter(authHelper);
-          const calendars = await adapter.discoverCalendars(token);
+          const calendars = await adapter.discoverCalendars(token, proxySettings);
           if (calendars.length === 0) {
             new Notice('未发现任何日历');
             return;
@@ -1156,21 +1272,20 @@ class EditSourceModal extends Modal {
         };
 
         if (source.type === 'google') {
-          updated.google = {
-            clientId: clientId.trim(),
-            clientSecret: clientSecret.trim(),
-            accessToken: source.google?.accessToken,
-            refreshToken: source.google?.refreshToken,
-            tokenExpiry: source.google?.tokenExpiry,
-            calendarId: source.google?.calendarId,
-            calendarName: source.google?.calendarName,
-            selectedCalendars: source.google?.selectedCalendars,
-            refreshTokenFingerprint: source.google?.refreshTokenFingerprint,
-            refreshTokenSavedAt: source.google?.refreshTokenSavedAt,
-            lastRefreshAttemptAt: source.google?.lastRefreshAttemptAt,
-            lastRefreshTokenFingerprintUsed: source.google?.lastRefreshTokenFingerprintUsed,
-            lastSyncError: source.google?.lastSyncError,
-          };
+          try {
+            updated.google = buildSavedGoogleConfig(
+              source,
+              clientId,
+              clientSecret,
+              buildEditableGoogleProxySettings(googleProxySettings.mode, googleProxyHost, googleProxyPort),
+            );
+          } catch (error) {
+            if (error instanceof GoogleProxyConfigurationError) {
+              new Notice(error.message);
+              return;
+            }
+            throw error;
+          }
         } else if (source.type === 'caldav') {
           updated.caldav = {
             serverUrl: serverUrl.trim(),

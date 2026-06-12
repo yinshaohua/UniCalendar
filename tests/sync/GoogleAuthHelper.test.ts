@@ -90,6 +90,24 @@ describe('GoogleAuthHelper', () => {
       const call = vi.mocked(requestUrl).mock.calls[0]![0] as { body: string };
       expect(call.body).toContain('code_verifier=my-verifier');
     });
+
+    it('routes code exchange through system proxy mode using Obsidian requestUrl', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ access_token: 'at', refresh_token: 'rt', expires_in: 3600 }, 200));
+
+      await helper.exchangeCode(
+        'code',
+        'cid',
+        'cs',
+        'http://localhost',
+        'my-verifier',
+        { mode: 'system' },
+      );
+
+      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string; method: string; body: string };
+      expect(call.url).toBe('https://oauth2.googleapis.com/token');
+      expect(call.method).toBe('POST');
+      expect(call.body).toContain('grant_type=authorization_code');
+    });
   });
 
   describe('refreshAccessToken', () => {
@@ -102,7 +120,18 @@ describe('GoogleAuthHelper', () => {
       expect(result.tokenExpiry).toBeGreaterThan(Date.now());
       expect(result).not.toHaveProperty('refreshToken');
 
-      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { body: string };
+      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string; body: string };
+      expect(call.url).toBe('https://oauth2.googleapis.com/token');
+      expect(call.body).toContain('grant_type=refresh_token');
+    });
+
+    it('routes refresh token requests through system proxy mode using Obsidian requestUrl', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ access_token: 'refreshed-token', expires_in: 3600 }, 200));
+
+      await helper.refreshAccessToken('rt', 'cid', 'cs', { mode: 'system' });
+
+      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string; body: string };
+      expect(call.url).toBe('https://oauth2.googleapis.com/token');
       expect(call.body).toContain('grant_type=refresh_token');
     });
 
@@ -115,6 +144,21 @@ describe('GoogleAuthHelper', () => {
 
       expect(result.accessToken).toBe('retry-token');
       expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps system proxy mode on retryable refresh retries', async () => {
+      vi.mocked(requestUrl)
+        .mockRejectedValueOnce(new Error('socket hang up'))
+        .mockResolvedValueOnce(makeResponse({ access_token: 'retry-token', expires_in: 3600 }, 200));
+
+      const result = await helper.refreshAccessToken('rt', 'cid', 'cs', { mode: 'system' });
+
+      expect(result.accessToken).toBe('retry-token');
+      expect(vi.mocked(requestUrl)).toHaveBeenCalledTimes(2);
+      for (const call of vi.mocked(requestUrl).mock.calls) {
+        const request = call[0] as { url: string };
+        expect(request.url).toBe('https://oauth2.googleapis.com/token');
+      }
     });
 
     it('throws invalid_grant as reauth-required token error', async () => {
@@ -268,6 +312,25 @@ describe('GoogleAuthHelper', () => {
       expect(token).toBe('new-token');
       expect(google.accessToken).toBe('new-token');
       expect(google.tokenExpiry).toBeGreaterThan(Date.now());
+    });
+
+    it('passes source proxy mode when refreshing an expiring token', async () => {
+      vi.mocked(requestUrl).mockResolvedValueOnce(makeResponse({ access_token: 'proxied-token', expires_in: 3600 }, 200));
+
+      const google = {
+        clientId: 'cid',
+        clientSecret: 'cs',
+        accessToken: 'old-token',
+        refreshToken: 'rt',
+        tokenExpiry: Date.now() + 2 * 60 * 1000,
+        proxyMode: 'system' as const,
+      };
+
+      const token = await helper.ensureValidToken(google);
+
+      const call = vi.mocked(requestUrl).mock.calls[0]![0] as { url: string };
+      expect(token).toBe('proxied-token');
+      expect(call.url).toBe('https://oauth2.googleapis.com/token');
     });
 
     it('propagates structured token errors for caller diagnostics', async () => {

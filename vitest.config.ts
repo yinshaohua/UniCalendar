@@ -1,9 +1,10 @@
 import { createRequire } from 'node:module';
-import { EXTERNAL_MODE, EXTERNAL_NODE_MODULES } from './scripts/with-external-node-modules.mjs';
+import { EXTERNAL_MODE, EXTERNAL_NODE_MODULES, EXTERNAL_ROOT } from './scripts/with-external-node-modules.mjs';
 
 const externalRequire = EXTERNAL_MODE ? createRequire(`${EXTERNAL_NODE_MODULES}/../package.json`) : undefined;
 
 export default {
+  ...(EXTERNAL_MODE ? { cacheDir: `${EXTERNAL_ROOT}/.vite-cache` } : {}),
   resolve: {
     alias: {
       ...(EXTERNAL_MODE ? {

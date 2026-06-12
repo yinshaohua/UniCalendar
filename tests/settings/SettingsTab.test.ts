@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
+  buildSavedGoogleConfig,
   formatGoogleSelectionSummary,
   formatGoogleErrorPhase,
   formatGoogleErrorSummary,
@@ -29,6 +30,57 @@ function makeGoogleSource(overrides: Partial<NonNullable<CalendarSource['google'
     },
   };
 }
+
+describe('buildSavedGoogleConfig', () => {
+  it('persists Google custom proxy settings while preserving existing token fields', () => {
+    const source = makeGoogleSource({
+      accessToken: 'at',
+      refreshToken: 'rt',
+      tokenExpiry: 123,
+      calendarId: 'primary',
+    });
+
+    const google = buildSavedGoogleConfig(
+      source,
+      ' cid ',
+      ' secret ',
+      { mode: 'custom', host: ' 127.0.0.1 ', port: 7890 },
+    );
+
+    expect(google).toMatchObject({
+      clientId: 'cid',
+      clientSecret: 'secret',
+      accessToken: 'at',
+      refreshToken: 'rt',
+      tokenExpiry: 123,
+      calendarId: 'primary',
+      proxyMode: 'custom',
+      proxyHost: '127.0.0.1',
+      proxyPort: 7890,
+      proxyUrl: undefined,
+    });
+  });
+
+  it('saves none mode without custom proxy fields', () => {
+    const google = buildSavedGoogleConfig(
+      makeGoogleSource({ proxyMode: 'custom', proxyHost: '127.0.0.1', proxyPort: 7890 }),
+      'cid',
+      'secret',
+      { mode: 'none' },
+    );
+
+    expect(google.proxyMode).toBe('none');
+    expect(google.proxyHost).toBeUndefined();
+    expect(google.proxyPort).toBeUndefined();
+    expect(google.proxyUrl).toBeUndefined();
+  });
+
+  it('rejects invalid custom Google proxy ports before saving', () => {
+    expect(() => buildSavedGoogleConfig(makeGoogleSource(), 'cid', 'secret', { mode: 'custom', host: '127.0.0.1', port: 0 })).toThrow(
+      'Google 代理端口必须是 1 到 65535 之间的整数。',
+    );
+  });
+});
 
 function makeFeishuSource(overrides: Partial<NonNullable<CalendarSource['feishu']>> = {}): CalendarSource {
   return {
