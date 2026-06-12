@@ -161,7 +161,7 @@ describe('requestGoogleUrl', () => {
       request.write = vi.fn();
       request.end = vi.fn();
       request.destroy = vi.fn();
-      return request as ReturnType<typeof https.request>;
+      return request as unknown as ReturnType<typeof https.request>;
     }) as typeof https.request);
 
     await expect(requestGoogleUrl({
