@@ -35,7 +35,7 @@ export function resolveOptionalTool(specifier) {
 export function ensureToolNodeModules() {
 	if (EXTERNAL_MODE && !existsSync(EXTERNAL_NODE_MODULES)) {
 		throw new Error(
-			`${EXTERNAL_NODE_MODULES_ENV} points to ${EXTERNAL_NODE_MODULES}, but that directory does not exist. Run "npm run deps:install" after loading setenv.ps1, or unset ${EXTERNAL_NODE_MODULES_ENV} to use local node_modules.`,
+			`${EXTERNAL_NODE_MODULES_ENV} points to ${EXTERNAL_NODE_MODULES}, but that directory does not exist. Run "npm run deps:install" after loading setenv, or unset ${EXTERNAL_NODE_MODULES_ENV} to use local node_modules.`,
 		);
 	}
 }

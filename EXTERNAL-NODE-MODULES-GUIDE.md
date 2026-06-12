@@ -30,13 +30,7 @@ Run the PowerShell Profile function `setenv` from the project root to enable ext
 setenv
 ```
 
-If the Profile function is unavailable, dot-source the project script instead:
-
-```powershell
-. .\setenv.ps1
-```
-
-Both forms set:
+The Profile function sets:
 
 ```powershell
 $env:EXTERNAL_NODE_MODULES = "C:/local_data/<project-folder>/node_modules"
@@ -44,21 +38,20 @@ $env:NODE_PATH = $env:EXTERNAL_NODE_MODULES
 $env:PATH = "<external-node_modules>/.bin;$env:PATH"
 ```
 
-The project folder name is derived from the current working directory, so the function or script can be reused in another project without renaming project-specific variables.
+The project folder name is derived from the current working directory, so the function can be reused in another project without renaming project-specific variables.
 
 ## Required files
 
 Copy these files into another project:
 
 ```text
-setenv.ps1
 scripts/with-external-node-modules.mjs
 scripts/external-npm.mjs
 scripts/run-tool.mjs
 scripts/eslint-loader.mjs
 ```
 
-If you prefer the global Profile workflow, add a reusable `setenv` function to your PowerShell Profile that performs the same setup as `setenv.ps1`. Then adapt the project configuration files that invoke build, lint, and test tools.
+Add a reusable `setenv` function to your PowerShell Profile. Then adapt the project configuration files that invoke build, lint, and test tools.
 
 ## package.json scripts
 
@@ -148,7 +141,7 @@ Add only the packages the target project actually needs. Do not blindly copy ali
 8. Open a new PowerShell session and run external-mode verification:
 
    ```powershell
-   . .\setenv.ps1
+   setenv
    npm run deps:install
    npm run build
    npm test
@@ -165,10 +158,10 @@ Check whether the current shell has the variable set:
 $env:EXTERNAL_NODE_MODULES
 ```
 
-If it is empty, dot-source the setup script again:
+If it is empty, run the Profile function again from the project root:
 
 ```powershell
-. .\setenv.ps1
+setenv
 ```
 
 ### A tool starts but cannot resolve packages
@@ -179,12 +172,12 @@ The tool likely performs its own module resolution instead of relying only on No
 
 Confirm `.tsconfig.external-node-modules.json` is generated before the tool starts. `scripts/run-tool.mjs` should generate it for `tsc` and ESLint in external mode.
 
-### Git Bash cannot run setenv.ps1
+### Git Bash cannot run setenv
 
-`setenv.ps1` is a PowerShell script. Run it from PowerShell with dot-sourcing semantics:
+`setenv` is a PowerShell Profile function. Run it from PowerShell before npm commands:
 
 ```powershell
-. .\setenv.ps1
+setenv
 ```
 
 Git Bash can still run npm scripts after the equivalent environment variables are exported manually, but the reusable setup script is written for PowerShell.

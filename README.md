@@ -132,7 +132,7 @@ This project can keep `node_modules` outside the repository directory, which is 
 setenv
 ```
 
-The function sets `EXTERNAL_NODE_MODULES` to `C:/local_data/<project-folder>/node_modules` and updates `NODE_PATH`/`PATH` for that shell session. If the Profile function is unavailable, dot-source `setenv.ps1` as a fallback. With the environment loaded, npm scripts resolve tools from the external directory. Without it, scripts fall back to local `./node_modules`. Do not create a symlink or junction back to `node_modules`. See [External node_modules guide](EXTERNAL-NODE-MODULES-GUIDE.md) for details.
+The function sets `EXTERNAL_NODE_MODULES` to `C:/local_data/<project-folder>/node_modules` and updates `NODE_PATH`/`PATH` for that shell session. With the environment loaded, npm scripts resolve tools from the external directory. Without it, scripts fall back to local `./node_modules`. Do not create a symlink or junction back to `node_modules`. See [External node_modules guide](EXTERNAL-NODE-MODULES-GUIDE.md) for details.
 
 ### Common commands
 
