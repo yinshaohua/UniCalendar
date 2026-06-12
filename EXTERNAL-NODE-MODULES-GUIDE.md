@@ -24,13 +24,19 @@ Do not create a symlink or junction from the project directory back to the exter
 
 ## PowerShell setup
 
-Dot-source `setenv.ps1` to enable external mode for the current shell session:
+Run the PowerShell Profile function `setenv` from the project root to enable external mode for the current shell session:
+
+```powershell
+setenv
+```
+
+If the Profile function is unavailable, dot-source the project script instead:
 
 ```powershell
 . .\setenv.ps1
 ```
 
-The script sets:
+Both forms set:
 
 ```powershell
 $env:EXTERNAL_NODE_MODULES = "C:/local_data/<project-folder>/node_modules"
@@ -38,7 +44,7 @@ $env:NODE_PATH = $env:EXTERNAL_NODE_MODULES
 $env:PATH = "<external-node_modules>/.bin;$env:PATH"
 ```
 
-The project folder name is derived from the current working directory, so the script can be copied to another project without renaming project-specific variables.
+The project folder name is derived from the current working directory, so the function or script can be reused in another project without renaming project-specific variables.
 
 ## Required files
 
@@ -52,7 +58,7 @@ scripts/run-tool.mjs
 scripts/eslint-loader.mjs
 ```
 
-Then adapt the project configuration files that invoke build, lint, and test tools.
+If you prefer the global Profile workflow, add a reusable `setenv` function to your PowerShell Profile that performs the same setup as `setenv.ps1`. Then adapt the project configuration files that invoke build, lint, and test tools.
 
 ## package.json scripts
 
