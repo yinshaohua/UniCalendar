@@ -1,18 +1,5 @@
-import { builtinModules, createRequire } from "node:module";
-import process from "process";
-import {
-	EXTERNAL_MODE,
-	EXTERNAL_NODE_MODULES,
-	createToolEnv,
-	ensureToolNodeModules,
-	requireTool,
-} from "./scripts/with-external-node-modules.mjs";
-
-ensureToolNodeModules();
-process.env = createToolEnv();
-
-const require = createRequire(import.meta.url);
-const esbuild = requireTool("esbuild");
+import { builtinModules } from "node:module";
+import esbuild from "esbuild";
 
 const banner =
 `/*
@@ -29,7 +16,6 @@ const context = await esbuild.context({
 	},
 	entryPoints: ["src/main.ts"],
 	bundle: true,
-	...(EXTERNAL_MODE ? { nodePaths: [EXTERNAL_NODE_MODULES] } : {}),
 	external: [
 		"obsidian",
 		"electron",

@@ -1,10 +1,7 @@
 import { createRequire } from 'node:module';
 import { pathToFileURL } from 'node:url';
-import { EXTERNAL_MODE, EXTERNAL_NODE_MODULES } from './scripts/with-external-node-modules.mjs';
 
-const require = EXTERNAL_MODE
-	? createRequire(`${EXTERNAL_NODE_MODULES}/../package.json`)
-	: createRequire(import.meta.url);
+const require = createRequire(import.meta.url);
 const tseslint = require('typescript-eslint');
 const globals = require('globals');
 const { globalIgnores } = require('eslint/config');
@@ -17,7 +14,7 @@ export default tseslint.config(
 				...globals.browser,
 			},
 			parserOptions: {
-				project: EXTERNAL_MODE ? './.tsconfig.external-node-modules.json' : './tsconfig.json',
+				project: './tsconfig.json',
 				tsconfigRootDir: import.meta.dirname,
 				extraFileExtensions: ['.json']
 			},

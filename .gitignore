@@ -62,7 +62,6 @@ vendor/
 coverage/
 .cache/
 tmp/
-.tsconfig.external-node-modules.json
 
 # ── GSD baseline (auto-generated) ──
 nul

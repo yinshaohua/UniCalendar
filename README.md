@@ -126,22 +126,17 @@ Keep `src/main.ts` small and place feature logic in focused modules under `src/`
 
 ### Environment
 
-This project can keep `node_modules` outside the repository directory, which is useful for OneDrive-synced workspaces. In PowerShell, run the Profile function `setenv` from the project root before npm commands:
+Install dependencies into the project-local `node_modules/` directory from the repository root. No PowerShell Profile function or external dependency directory is required:
 
 ```powershell
-setenv
+npm install
 ```
-
-The function sets `EXTERNAL_NODE_MODULES` to `C:/local_data/<project-folder>/node_modules` and updates `NODE_PATH`/`PATH` for that shell session. With the environment loaded, npm scripts resolve tools from the external directory. Without it, scripts fall back to local `./node_modules`. Do not create a symlink or junction back to `node_modules`. See [External node_modules guide](EXTERNAL-NODE-MODULES-GUIDE.md) for details.
 
 ### Common commands
 
 ```powershell
-# Recommended for this workspace.
-setenv
-
 # Install dependencies.
-npm run deps:install
+npm install
 
 # Watch mode, auto-recompile on save.
 npm run dev

@@ -8,13 +8,12 @@ This repository is an Obsidian community plugin written in TypeScript and bundle
 - The plugin entry point is `main.ts`, bundled to root-level `main.js` for Obsidian.
 - Release artifacts are `main.js`, `manifest.json`, and optional `styles.css`.
 - Use npm scripts from `package.json`; do not introduce another package manager.
-- The project is configured for external `node_modules` via the PowerShell Profile function `setenv`. Before running Node.js build, test, lint, or install commands in PowerShell, run `setenv` from the project root; do not create or commit a local `node_modules/` directory.
+- Install dependencies into the project-local `node_modules/` directory with `npm install`. Do not use Profile-based environment redirection, external dependency directories, symlinks, or junctions for dependency resolution, and do not commit `node_modules/`.
 
 ## Commands
 
 ```powershell
-setenv
-npm run deps:install
+npm install
 npm run dev
 npm run build
 npm test

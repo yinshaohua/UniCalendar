@@ -5,13 +5,11 @@
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
-		"deps:install": "node scripts/external-npm.mjs install",
-		"deps:clean": "node scripts/external-npm.mjs exec -- rimraf node_modules",
 		"dev": "node esbuild.config.mjs",
-		"build": "node scripts/run-tool.mjs tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
 		"version": "node version-bump.mjs && git add manifest.json versions.json",
-		"lint": "node --import ./scripts/eslint-loader.mjs scripts/run-tool.mjs eslint .",
-		"test": "node scripts/run-tool.mjs vitest run --reporter=verbose"
+		"lint": "eslint .",
+		"test": "vitest run --reporter=verbose"
 	},
 	"keywords": [],
 	"license": "0-BSD",
