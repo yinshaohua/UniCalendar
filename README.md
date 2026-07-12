@@ -120,9 +120,12 @@ src/
   sync/                   # Google, CalDAV, and ICS sync adapters
   views/                  # Calendar view and event detail modal
 tests/                    # Vitest test suites and Obsidian mocks
+.planning/                # Version-controlled GSD Core plans and history
 ```
 
 Keep `src/main.ts` small and place feature logic in focused modules under `src/`.
+
+Project planning uses GSD Core. Its project context, requirements, roadmap, phase plans, summaries, and milestone archive are version controlled under `.planning/`. The local `.gsd/` directory is retained only as a legacy migration source and is not used for new planning work.
 
 ### Environment
 

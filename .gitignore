@@ -24,8 +24,8 @@ data.json
 # Claude AI 编辑器缓存
 .claude/
 
-# GSD 规划目录
-.planning/
+# GSD Core 临时工作文件（规划文档本身纳入 Git 管理）
+.planning/tmp/
 
 # agent/runtime 状态目录
 .gsd/

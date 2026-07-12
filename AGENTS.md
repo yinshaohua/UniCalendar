@@ -9,6 +9,7 @@ This repository is an Obsidian community plugin written in TypeScript and bundle
 - Release artifacts are `main.js`, `manifest.json`, and optional `styles.css`.
 - Use npm scripts from `package.json`; do not introduce another package manager.
 - Install dependencies into the project-local `node_modules/` directory with `npm install`. Do not use Profile-based environment redirection, external dependency directories, symlinks, or junctions for dependency resolution, and do not commit `node_modules/`.
+- GSD Core planning state lives in `.planning/` and is version controlled. Keep plans, summaries, requirements, and milestone history there; treat `.gsd/` as a local legacy migration source and do not write new planning state to it.
 
 ## Commands
 
@@ -20,7 +21,7 @@ npm test
 npm run lint
 ```
 
-Use the most specific verification first, then run broader checks when relevant. Build artifacts such as `main.js` are generated outputs and should not be committed unless a release task explicitly requires them.
+Use the most specific verification first, then run broader checks when relevant. Build artifacts such as `main.js` and transient `.planning/tmp/` files should not be committed unless a release task explicitly requires them.
 
 ## Code conventions
 
