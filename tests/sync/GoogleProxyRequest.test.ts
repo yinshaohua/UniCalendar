@@ -10,6 +10,10 @@ import {
   toRequestUrlParam,
 } from '../../src/sync/GoogleProxyRequest';
 
+vi.mock('http', { spy: true });
+vi.mock('https', { spy: true });
+vi.mock('tls', { spy: true });
+
 describe('normalizeGoogleProxySettings', () => {
   it('keeps none mode without custom proxy fields', () => {
     expect(normalizeGoogleProxySettings({ mode: 'none', host: '127.0.0.1', port: 7890 })).toEqual({ mode: 'none' });
@@ -121,9 +125,9 @@ describe('requestGoogleUrl', () => {
     const tlsSocket = new EventEmitter();
     socket.destroy = vi.fn();
 
-    vi.spyOn(tls, 'connect').mockReturnValue(tlsSocket as ReturnType<typeof tls.connect>);
+    vi.mocked(tls.connect).mockReturnValue(tlsSocket as ReturnType<typeof tls.connect>);
 
-    vi.spyOn(http, 'request').mockImplementation((options: unknown) => {
+    vi.mocked(http.request).mockImplementation((options: unknown) => {
       expect(options).toMatchObject({
         host: '127.0.0.1',
         port: 7897,
@@ -136,7 +140,7 @@ describe('requestGoogleUrl', () => {
       return connectRequest as ReturnType<typeof http.request>;
     });
 
-    vi.spyOn(https, 'request').mockImplementation(((options: unknown, callback?: (response: import('http').IncomingMessage) => void) => {
+    vi.mocked(https.request).mockImplementation(((options: unknown, callback?: (response: import('http').IncomingMessage) => void) => {
       expect(options).toMatchObject({
         protocol: 'https:',
         hostname: 'oauth2.googleapis.com',

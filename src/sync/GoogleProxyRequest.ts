@@ -243,7 +243,9 @@ function collectNodeResponse(
   reject: (error: unknown) => void,
 ): void {
   const chunks: Buffer[] = [];
-  response.on('data', chunk => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)));
+  response.on('data', (chunk: Buffer | string) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
   response.on('error', reject);
   response.on('end', () => {
     const buffer = Buffer.concat(chunks);

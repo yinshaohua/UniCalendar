@@ -21,6 +21,28 @@ export default tseslint.config(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		files: ['src/sync/GoogleProxyRequest.ts'],
+		languageOptions: {
+			globals: {
+				...globals.node,
+			},
+		},
+		rules: {
+			'import/no-nodejs-modules': 'off',
+		},
+	},
+	{
+		files: ['tests/**/*.ts'],
+		languageOptions: {
+			globals: {
+				...globals.node,
+			},
+		},
+		rules: {
+			'import/no-nodejs-modules': 'off',
+		},
+	},
 	globalIgnores([
 		"node_modules",
 		"dist",
