@@ -59,10 +59,29 @@ export class EventStore {
     );
   }
 
+  /**
+   * 把事件的 ISO 时间(UTC, 如 "2026-08-02T23:00:00.000Z")转成本地日期字符串
+   * (如 "2026-08-03")。直接 slice(0,10) 会取到 UTC 日期, 导致跨时区日程错位一天。
+   * allDay 事件本身就是日期字符串, 直接 slice 即可。
+   */
+  private eventDateLocal(iso: string, allDay?: boolean): string {
+    if (allDay) {
+      return iso.slice(0, 10);
+    }
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) {
+      return iso.slice(0, 10);
+    }
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
+
   getEventsForDate(dateStr: string): CalendarEvent[] {
     const filtered = this.events.filter(event => {
-      const eventStart = event.start.slice(0, 10);
-      const eventEnd = event.end.slice(0, 10);
+      const eventStart = this.eventDateLocal(event.start, event.allDay);
+      const eventEnd = this.eventDateLocal(event.end, event.allDay);
       return eventStart <= dateStr && eventEnd >= dateStr;
     });
     return filterEventsByTitleRules(
@@ -73,8 +92,8 @@ export class EventStore {
 
   getEventsForDateRange(startDate: string, endDate: string): CalendarEvent[] {
     const filtered = this.events.filter(event => {
-      const eventStart = event.start.slice(0, 10);
-      const eventEnd = event.end.slice(0, 10);
+      const eventStart = this.eventDateLocal(event.start, event.allDay);
+      const eventEnd = this.eventDateLocal(event.end, event.allDay);
       // Event overlaps range if it starts before range ends AND ends after range starts
       return eventStart <= endDate && eventEnd >= startDate;
     });
