@@ -246,6 +246,84 @@ export class CalDavSyncAdapter {
     const endUtc = this.dateToCalDavUTC(rangeEnd);
     const calendarCacheEntry = this.getCalendarCacheEntry(options?.cache, sourceId, calendarPath);
 
+    // 飞书 CalDAV 专用分支: 飞书的 calendar-query 连 href 都不返回,
+    // 插件原有的"query 返回 href-only 再 multiget"兼容逻辑走不到。
+    // 这里直接 PROPFIND 列 href → multiget 取 body, 绕过 calendar-query。
+    if (this.isFeishuServer(baseUrl)) {
+      console.debug(`[UniCalendar] Feishu fast-path: PROPFIND + multiget for ${calendarPath}`);
+      const propfindBody = `<?xml version="1.0" encoding="UTF-8"?>
+<D:propfind xmlns:D="DAV:">
+  <D:prop><D:getetag/></D:prop>
+</D:propfind>`;
+      let hrefs: string[] = [];
+      try {
+        const pfResp = await requestUrl({
+          url: calendarUrl,
+          method: 'PROPFIND',
+          headers: {
+            'Authorization': authHeader,
+            'Content-Type': 'application/xml; charset="utf-8"',
+            'Depth': '1',
+          },
+          body: propfindBody,
+        });
+        const hrefRegex = /<D:href>([^<]+\.ics)<\/D:href>/g;
+        let match: RegExpExecArray | null;
+        while ((match = hrefRegex.exec(pfResp.text)) !== null) {
+          const href = match[1];
+          if (href) {
+            hrefs.push(href);
+          }
+        }
+        console.debug(`[UniCalendar] Feishu PROPFIND found ${hrefs.length} ics files from ${calendarPath}`);
+      } catch (err: unknown) {
+        const status = (err as { status?: number }).status;
+        if (status === 401) {
+          throw new Error('CalDAV认证失败: 请检查用户名和密码');
+        }
+        throw new Error('CalDAV PROPFIND失败: ' + (err instanceof Error ? err.message : String(err)));
+      }
+
+      if (hrefs.length === 0) {
+        console.debug(`[UniCalendar] Feishu PROPFIND returned no events from ${calendarPath}`);
+        return [];
+      }
+
+      // href 转成完整 URL 喂给 multiget (它会内部转 pathname)
+      const eventUrls = hrefs.map(h => new URL(h, baseUrl).href);
+      const fetched = await this.fetchEventResourcesViaMultiget(eventUrls, calendarUrl, authHeader);
+      const icsTexts = fetched.bodies;
+      console.debug(`[UniCalendar] Feishu multiget returned ${icsTexts.length} payloads from ${calendarPath}`);
+
+      if (icsTexts.length === 0) {
+        throw this.createCalDavDiagnosticError(
+          calendarPath,
+          '飞书 CalDAV multiget 未返回 calendar-data。',
+          '',
+        );
+      }
+
+      const events: CalendarEvent[] = [];
+      for (const icsText of icsTexts) {
+        try {
+          const parsed = this.icsAdapter.parseIcsText(icsText, sourceId, rangeStart, rangeEnd);
+          events.push(...parsed);
+        } catch (err) {
+          console.warn('[UniCalendar] Failed to parse Feishu CalDAV event:', err);
+        }
+      }
+      if (cacheOptions?.useFingerprintCache && calendarCacheEntry) {
+        this.storeCalendarResultCache(options, sourceId, calendarPath, events, {
+          cacheWindowStart: rangeStart.toISOString(),
+          cacheWindowEnd: rangeEnd.toISOString(),
+        });
+      }
+      console.debug(
+        `[UniCalendar] Feishu fast-path done: path=${calendarPath}, events=${events.length}`,
+      );
+      return events;
+    }
+
     const body = `<?xml version="1.0" encoding="UTF-8"?>
 <C:calendar-query xmlns:C="urn:ietf:params:xml:ns:caldav" xmlns:D="DAV:">
   <D:prop>
